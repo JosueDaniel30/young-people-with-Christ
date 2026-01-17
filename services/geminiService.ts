@@ -1,9 +1,14 @@
 
 import { GoogleGenAI, Modality, Type } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Función auxiliar para obtener la instancia de AI justo antes de usarla.
+// Esto evita que la aplicación se bloquee si process.env no está definido al cargar el módulo.
+const getAI = () => {
+  return new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+};
 
 export const analyzeVerse = async (verse: string) => {
+  const ai = getAI();
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
     contents: `Analiza este versículo bíblico (Reina Valera 1960) para un público joven. Explica su significado práctico y cómo aplicarlo hoy: "${verse}"`,
@@ -22,6 +27,7 @@ export interface BibleSearchParams {
 }
 
 export const searchBible = async (params: string | BibleSearchParams) => {
+  const ai = getAI();
   let prompt = "";
   if (typeof params === 'string') {
     prompt = `Como buscador RVR1960, encuentra 5 versículos clave sobre: "${params}". Devuelve JSON con campos: book, chapter, verse, text.`;
@@ -65,6 +71,7 @@ export const searchBible = async (params: string | BibleSearchParams) => {
 
 export const playAudio = async (text: string) => {
   try {
+    const ai = getAI();
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash-preview-tts",
       contents: [{ parts: [{ text }] }],
@@ -94,6 +101,7 @@ export const playAudio = async (text: string) => {
 };
 
 export const createBibleChat = () => {
+  const ai = getAI();
   return ai.chats.create({
     model: 'gemini-3-flash-preview',
     config: {
