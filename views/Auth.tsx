@@ -5,10 +5,9 @@ import { feedback } from '../services/audioFeedback';
 
 const Auth: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
   const [isRegister, setIsRegister] = useState(false);
-  const [email, setEmail] = useState('');
-  const [pass, setPass] = useState('');
+  const [email, setEmail] = useState('joven123@gmial.com');
+  const [pass, setPass] = useState('Dios12345');
   const [name, setName] = useState('');
-  const [imgError, setImgError] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -42,7 +41,6 @@ const Auth: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
     setError('');
     setIsLoading(true);
 
-    // Simulación de proceso de autenticación exitoso
     setTimeout(() => {
       setIsLoading(false);
       onLogin();
@@ -54,7 +52,6 @@ const Auth: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
     setIsLoading(true);
     setError('');
     
-    // Simulación de autenticación con proveedor externo
     setTimeout(() => {
       setIsLoading(false);
       onLogin();
@@ -63,26 +60,16 @@ const Auth: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col relative overflow-hidden">
-      {/* Background Section */}
       <div className={`absolute top-0 left-0 w-full h-[45%] sm:h-[40%] bg-[#1A3A63] rounded-b-[80px] flex flex-col items-center justify-center p-8 text-white text-center shadow-[0_20px_50px_rgba(26,58,99,0.3)] transition-all duration-700`}>
         
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-indigo-400/20 blur-[80px] rounded-full pointer-events-none" />
 
         <div className="relative mb-6 group">
           <div className="bg-white p-4 rounded-[32px] shadow-2xl flex items-center justify-center min-w-[140px] min-h-[140px] sm:min-w-[180px] sm:min-h-[180px] transition-transform duration-500 group-hover:scale-105 border-4 border-white/10">
-            {!imgError ? (
-              <img 
-                src="LOGO.png" 
-                alt="Jóvenes con Cristo Logo" 
-                className="w-36 h-36 sm:w-44 sm:h-44 object-contain drop-shadow-sm"
-                onError={() => setImgError(true)}
-              />
-            ) : (
-              <div className="flex flex-col items-center text-[#1A3A63] font-black">
-                <span className="text-4xl">✝️</span>
-                <span className="text-xs uppercase tracking-widest">Ignite</span>
-              </div>
-            )}
+            <div className="flex flex-col items-center text-[#1A3A63] font-black">
+              <span className="text-6xl sm:text-7xl">✝️</span>
+              <span className="text-xs uppercase tracking-[0.3em] mt-2">Ignite</span>
+            </div>
           </div>
           <div className="absolute -top-2 -right-2 bg-red-500 w-8 h-8 rounded-xl flex items-center justify-center shadow-lg animate-bounce">
             <Sparkles className="w-4 h-4 text-white" />
@@ -95,7 +82,6 @@ const Auth: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
         </div>
       </div>
 
-      {/* Auth Card */}
       <div className="flex-1 flex items-start justify-center px-6 z-10 w-full pt-[40vh] sm:pt-[35vh] pb-10">
         <div className="bg-white rounded-[40px] p-8 sm:p-10 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.1)] space-y-6 border border-slate-100 w-full max-w-md animate-in slide-in-from-bottom-8 duration-500">
           
@@ -179,11 +165,7 @@ const Auth: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <button 
-              onClick={() => handleSocialLogin('Google')}
-              disabled={isLoading}
-              className="flex items-center justify-center gap-2 py-3.5 border-2 border-slate-100 rounded-2xl hover:bg-slate-50 transition-all active:scale-95 disabled:opacity-50"
-            >
+            <button onClick={() => handleSocialLogin('Google')} disabled={isLoading} className="flex items-center justify-center gap-2 py-3.5 border-2 border-slate-100 rounded-2xl hover:bg-slate-50 transition-all active:scale-95 disabled:opacity-50">
               <svg className="w-4 h-4" viewBox="0 0 24 24">
                 <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                 <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -192,11 +174,7 @@ const Auth: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
               </svg>
               <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest">Google</span>
             </button>
-            <button 
-              onClick={() => handleSocialLogin('Facebook')}
-              disabled={isLoading}
-              className="flex items-center justify-center gap-2 py-3.5 bg-[#1877F2] text-white rounded-2xl hover:bg-[#166fe5] transition-all active:scale-95 disabled:opacity-50"
-            >
+            <button onClick={() => handleSocialLogin('Facebook')} disabled={isLoading} className="flex items-center justify-center gap-2 py-3.5 bg-[#1877F2] text-white rounded-2xl hover:bg-[#166fe5] transition-all active:scale-95 disabled:opacity-50">
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
               </svg>

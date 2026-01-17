@@ -11,12 +11,10 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Ignite">
-    <link rel="apple-touch-icon" href="./LOGO.png">
     <link rel="manifest" href="./manifest.json">
     
     <!-- SEO & Metatags -->
     <meta name="description" content="Aplicación oficial de Jóvenes con Cristo. Biblia RVR60, Mentoría con IA y Metas Espirituales.">
-    <link rel="icon" type="image/png" href="LOGO.png">
 
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Lora:ital,wght@1,400;1,700&family=Playfair+Display:ital,wght@1,900&display=swap" rel="stylesheet">
@@ -82,27 +80,13 @@
 </head>
 <body class="bg-slate-50 text-slate-900 overflow-x-hidden">
     <div id="root"></div>
-    <!-- Punto de entrada explícito para GitHub Pages -->
     <script type="module" src="./index.tsx"></script>
     <script>
-      // Registro de Service Worker con manejo de errores robusto
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('./sw.js')
             .then(reg => {
               console.log('Service Worker registrado correctamente.');
-              reg.onupdatefound = () => {
-                const installingWorker = reg.installing;
-                if (installingWorker) {
-                  installingWorker.onstatechange = () => {
-                    if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                      if (confirm('¡Hay una nueva versión de Ignite! ¿Quieres actualizar ahora?')) {
-                        window.location.reload();
-                      }
-                    }
-                  };
-                }
-              };
             })
             .catch(err => {
               console.warn('Registro de Service Worker omitido:', err.message);

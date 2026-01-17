@@ -71,7 +71,6 @@ const Profile: React.FC<ProfileProps> = ({ user, refreshState, onLogout }) => {
         dateEarned: userBadge?.dateEarned || 'Recientemente'
       });
     } else {
-      // Opcional: mostrar qué se necesita para ganarla
       setSelectedBadge({
         ...badge,
         dateEarned: 'Bloqueada',
@@ -104,7 +103,7 @@ const Profile: React.FC<ProfileProps> = ({ user, refreshState, onLogout }) => {
               alt="User" 
               className="w-40 h-40 rounded-full object-cover border-4 border-white dark:border-slate-800" 
               onError={(e) => {
-                e.currentTarget.src = 'LOGO.png';
+                e.currentTarget.src = 'https://api.dicebear.com/7.x/avataaars/svg?seed=Ignite';
               }}
             />
           </div>
@@ -242,29 +241,21 @@ const Profile: React.FC<ProfileProps> = ({ user, refreshState, onLogout }) => {
         </div>
       </div>
 
-      {/* Badge Detail Modal Enhanced */}
       {selectedBadge && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-6 bg-black/80 backdrop-blur-xl animate-in fade-in duration-300">
           <div className={`${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white'} w-full max-w-lg rounded-[64px] overflow-hidden shadow-[0_0_100px_rgba(0,0,0,0.5)] animate-in zoom-in-95 duration-500 border-4 border-white/10 relative`}>
-            {/* Header Decorativo con Icono Grande */}
             <div className={`h-48 w-full relative overflow-hidden flex items-center justify-center ${earnedBadgeIds.includes(selectedBadge.id) ? selectedBadge.color : 'bg-slate-600'}`}>
               <div className="absolute inset-0 bg-gradient-to-b from-white/20 to-transparent" />
               <div className="absolute -bottom-10 -right-10 opacity-10 rotate-12 scale-150">
                  {getBadgeIcon(selectedBadge.icon, "w-64 h-64")}
               </div>
-              
               <div className="relative z-10 p-10 rounded-[48px] bg-white/10 backdrop-blur-3xl border-4 border-white/30 shadow-2xl transform hover:rotate-6 transition-transform duration-700">
                  {getBadgeIcon(selectedBadge.icon, "w-20 h-20 text-white")}
               </div>
-
-              <button 
-                onClick={() => { feedback.playClick(); setSelectedBadge(null); }} 
-                className="absolute top-6 right-6 p-3 bg-white/20 hover:bg-white/40 text-white rounded-full backdrop-blur-md transition-all z-20"
-              >
+              <button onClick={() => { feedback.playClick(); setSelectedBadge(null); }} className="absolute top-6 right-6 p-3 bg-white/20 hover:bg-white/40 text-white rounded-full backdrop-blur-md transition-all z-20">
                 <X className="w-6 h-6" />
               </button>
             </div>
-
             <div className="p-10 space-y-8 text-center">
               <div className="space-y-3">
                 <div className="flex items-center justify-center gap-2 mb-1">
@@ -275,43 +266,11 @@ const Profile: React.FC<ProfileProps> = ({ user, refreshState, onLogout }) => {
                 <h3 className={`text-4xl sm:text-5xl font-black uppercase tracking-tighter leading-none ${isDarkMode ? 'text-white' : 'text-slate-800'}`}>
                   {selectedBadge.name}
                 </h3>
-                {earnedBadgeIds.includes(selectedBadge.id) && (
-                  <div className="flex items-center justify-center gap-2 text-slate-500 pt-2">
-                    <Calendar className="w-4 h-4" />
-                    <span className="text-[10px] font-black uppercase tracking-widest">Logrado el: {selectedBadge.dateEarned}</span>
-                  </div>
-                )}
               </div>
-
-              <div className={`p-8 rounded-[40px] border-2 space-y-4 ${isDarkMode ? 'bg-slate-800/40 border-slate-700/50' : 'bg-slate-50 border-slate-100'}`}>
-                <p className={`text-[10px] font-black uppercase tracking-[0.3em] ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
-                  Mérito obtenido por:
-                </p>
-                <p className={`text-lg sm:text-xl font-bold leading-tight ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>
-                  {selectedBadge.description || "Dedicación excepcional a tu crecimiento espiritual."}
-                </p>
-              </div>
-
-              <div className="space-y-4 px-4">
-                 <p className="text-[10px] font-black uppercase tracking-[0.5em] text-indigo-500">Sabiduría Ignite</p>
-                 <p className={`text-2xl sm:text-3xl font-serif-italic italic tracking-tight leading-snug ${isDarkMode ? 'text-indigo-200' : 'text-indigo-900'}`}>
-                    "{selectedBadge.message || "Tu fe es la llama que ilumina el camino de otros."}"
-                 </p>
-              </div>
-
               <div className="flex flex-col sm:flex-row gap-4 pt-4">
-                <button 
-                  onClick={() => handleShareBadge(selectedBadge)}
-                  className={`flex-1 py-5 rounded-3xl font-black uppercase tracking-widest text-xs transition-all shadow-xl active:scale-95 flex items-center justify-center gap-3 ${isDarkMode ? 'bg-indigo-600 text-white hover:bg-indigo-500' : 'bg-[#1A3A63] text-white hover:bg-[#152e4f]'}`}
-                >
+                <button onClick={() => handleShareBadge(selectedBadge)} className={`flex-1 py-5 rounded-3xl font-black uppercase tracking-widest text-xs transition-all shadow-xl active:scale-95 flex items-center justify-center gap-3 ${isDarkMode ? 'bg-indigo-600 text-white hover:bg-indigo-500' : 'bg-[#1A3A63] text-white hover:bg-[#152e4f]'}`}>
                   <Share2 className="w-5 h-5" />
                   Compartir Logro
-                </button>
-                <button 
-                  onClick={() => { feedback.playClick(); setSelectedBadge(null); }}
-                  className={`flex-1 py-5 rounded-3xl font-black uppercase tracking-widest text-xs transition-all border-2 ${isDarkMode ? 'border-slate-700 text-slate-400 hover:text-white' : 'border-slate-100 text-slate-500 hover:bg-slate-50'}`}
-                >
-                  Cerrar
                 </button>
               </div>
             </div>

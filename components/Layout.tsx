@@ -12,7 +12,6 @@ interface LayoutProps {
 }
 
 const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) => {
-  const [logoError, setLogoError] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [state, setState] = useState(loadDB());
   const [activeToast, setActiveToast] = useState<NotificationType | null>(null);
@@ -23,7 +22,6 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
   const isDarkMode = state.user.theme === 'dark';
 
   useEffect(() => {
-    // Escuchar el evento de instalación de PWA
     const handleBeforeInstall = (e: any) => {
       e.preventDefault();
       setDeferredPrompt(e);
@@ -31,7 +29,6 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstall);
 
-    // Sincronización de estado y notificaciones
     const interval = setInterval(() => {
       const currentState = loadDB();
       setState(currentState);
@@ -62,7 +59,6 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
     deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
     if (outcome === 'accepted') {
-      console.log('App instalada');
       setDeferredPrompt(null);
     }
   };
@@ -112,7 +108,6 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
   return (
     <div className={`min-h-screen pb-24 flex flex-col transition-colors duration-500 ${isDarkMode ? 'dark bg-[#0f172a] text-slate-100' : 'bg-slate-50 text-slate-900'} relative overflow-x-hidden`}>
       
-      {/* PWA Install Banner (Más visible en Android) */}
       {(deferredPrompt || activeTab === 'profile') && (
         <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[60] w-[95%] max-w-sm animate-in fade-in slide-in-from-top-4 duration-500">
           <div className={`p-4 rounded-3xl border-2 flex items-center justify-between shadow-2xl backdrop-blur-xl ${isDarkMode ? 'bg-indigo-600/95 border-indigo-400/30' : 'bg-[#1A3A63] border-white/20'} text-white`}>
@@ -125,17 +120,13 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
                 <p className="text-[9px] opacity-70">Instala la app en tu Android</p>
               </div>
             </div>
-            <button 
-              onClick={handleInstallClick}
-              className="bg-white text-indigo-900 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-lg"
-            >
+            <button onClick={handleInstallClick} className="bg-white text-indigo-900 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-lg">
               {deferredPrompt ? 'Instalar' : '¿Cómo?'}
             </button>
           </div>
         </div>
       )}
 
-      {/* Manual Install Help for Android */}
       {showInstallHelp && (
         <div className="fixed inset-0 z-[200] bg-black/80 backdrop-blur-xl flex items-center justify-center p-6 animate-in fade-in duration-300">
           <div className={`${isDarkMode ? 'bg-slate-900 border-slate-700' : 'bg-white'} w-full max-w-sm rounded-[40px] border-4 border-indigo-500/30 overflow-hidden shadow-2xl animate-in zoom-in-95 duration-500`}>
@@ -150,21 +141,18 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
               <div className={`p-6 rounded-3xl text-left space-y-4 ${isDarkMode ? 'bg-slate-800' : 'bg-slate-50'}`}>
                 <div className="flex items-center gap-3">
                   <span className="w-6 h-6 bg-indigo-600 text-white rounded-full flex items-center justify-center text-[10px] font-black">1</span>
-                  <p className="text-xs font-bold">Toca los <MoreVertical className="inline w-4 h-4" /> (3 puntos) en la esquina de Chrome.</p>
+                  <p className="text-xs font-bold">Toca los <MoreVertical className="inline w-4 h-4" /> en Chrome.</p>
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="w-6 h-6 bg-indigo-600 text-white rounded-full flex items-center justify-center text-[10px] font-black">2</span>
-                  <p className="text-xs font-bold">Busca "Instalar aplicación" o "Añadir a pantalla de inicio".</p>
+                  <p className="text-xs font-bold">Busca "Instalar aplicación".</p>
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="w-6 h-6 bg-indigo-600 text-white rounded-full flex items-center justify-center text-[10px] font-black">3</span>
-                  <p className="text-xs font-bold text-indigo-500">¡Listo! Ya la tendrás en tu menú como una App real.</p>
+                  <p className="text-xs font-bold text-indigo-500">¡Listo!</p>
                 </div>
               </div>
-              <button 
-                onClick={() => setShowInstallHelp(false)}
-                className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl active:scale-95 transition-all"
-              >
+              <button onClick={() => setShowInstallHelp(false)} className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl active:scale-95 transition-all">
                 Entendido
               </button>
             </div>
@@ -172,7 +160,6 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
         </div>
       )}
 
-      {/* Toast Notifications */}
       {activeToast && (
         <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[1000] w-[90%] max-w-md animate-in slide-in-from-top-10 duration-500 ease-out">
           <div className={`p-5 rounded-[32px] border-2 shadow-[0_20px_50px_rgba(0,0,0,0.2)] backdrop-blur-2xl flex items-center gap-4 group transition-all ${
@@ -196,11 +183,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
             <div className="bg-white p-1.5 rounded-xl flex items-center justify-center min-w-[36px] min-h-[36px] shadow-lg">
-              {!logoError ? (
-                <img src="LOGO.png" alt="Logo" className="w-8 h-8 object-contain" onError={() => setLogoError(true)} />
-              ) : (
-                <span className="text-sm">✝️</span>
-              )}
+              <span className="text-xl">✝️</span>
             </div>
             <div className="flex flex-col">
               <h1 className="text-sm sm:text-lg font-black tracking-tighter uppercase leading-none">Jóvenes</h1>

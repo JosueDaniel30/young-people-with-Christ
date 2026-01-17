@@ -23,7 +23,7 @@ const DEFAULT_REFLECTIONS: Reflection[] = [
     id: 'r1',
     userId: 'system',
     userName: 'Líder Juvenil',
-    userPhoto: './logojov.png',
+    userPhoto: 'https://api.dicebear.com/7.x/bottts/svg?seed=Leader',
     verseReference: 'Filipenses 4:13',
     text: 'Este versículo me recuerda que mi fuerza no viene de mis habilidades, sino de mi dependencia total en Dios. ¡Bienvenidos a todos!',
     timestamp: 'Hace 2 horas',
@@ -47,9 +47,8 @@ export const loadDB = (): DBState => {
   const parsed = JSON.parse(data);
   if (!parsed.user.favorites) parsed.user.favorites = [];
   if (!parsed.reflections) parsed.reflections = DEFAULT_REFLECTIONS;
-  // Asegurar que si no hay foto, se use el logo oficial
-  if (!parsed.user.photoUrl || parsed.user.photoUrl.includes('pravatar')) {
-    parsed.user.photoUrl = './logojov.png';
+  if (!parsed.user.photoUrl) {
+    parsed.user.photoUrl = 'https://api.dicebear.com/7.x/avataaars/svg?seed=User';
   }
   return parsed;
 };
@@ -73,7 +72,7 @@ export const addReflection = (reflection: Omit<Reflection, 'id' | 'timestamp' | 
     likes: 0
   };
   state.reflections.unshift(newReflection);
-  state.user.points += 50; // Recompensa por participar
+  state.user.points += 50; 
   saveDB(state);
   feedback.playSuccess();
 };
