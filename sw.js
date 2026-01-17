@@ -1,16 +1,18 @@
 
-const CACHE_NAME = 'ignite-v1';
-const ASSETS_TO_CACHE = [
+const CACHE_NAME = 'ignite-v1.2-stable';
+const STATIC_ASSETS = [
   './',
   './index.html',
+  './manifest.json',
   './logojov.png',
-  'https://cdn.tailwindcss.com'
+  'https://cdn.tailwindcss.com',
+  'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Lora:ital,wght@1,400;1,700&family=Playfair+Display:ital,wght@1,900&display=swap'
 ];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS_TO_CACHE);
+      return cache.addAll(STATIC_ASSETS);
     })
   );
   self.skipWaiting();
@@ -18,38 +20,38 @@ self.addEventListener('install', (event) => {
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cache) => {
-          if (cache !== CACHE_NAME) {
-            return caches.delete(cache);
-          }
-        })
-      );
-    })
+    caches.keys().then((keys) => Promise.all(
+      keys.map((key) => {
+        if (key !== CACHE_NAME) return caches.delete(key);
+      })
+    ))
   );
+  return self.clients.claim();
 });
 
 self.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url);
+
+  // Excluir API de Gemini
+  if (url.hostname.includes('generativelanguage.googleapis.com')) return;
+
   event.respondWith(
-    caches.match(event.request).then((response) => {
-      // Retorna el caché si existe, sino hace el fetch
-      const fetchPromise = fetch(event.request).then((networkResponse) => {
-        // No cacheamos llamadas a la API de Gemini para asegurar frescura
-        if (event.request.url.includes('generativelanguage.googleapis.com')) {
-          return networkResponse;
+    caches.match(event.request).then((cachedResponse) => {
+      if (cachedResponse) return cachedResponse;
+
+      return fetch(event.request).then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200 && event.request.method === 'GET') {
+          const responseClone = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseClone);
+          });
         }
-        
-        return caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, networkResponse.clone());
-          return networkResponse;
-        });
+        return networkResponse;
       }).catch(() => {
-        // Fallback simple si no hay red ni caché
-        return response;
+        if (event.request.mode === 'navigate') {
+          return caches.match('./index.html');
+        }
       });
-      
-      return response || fetchPromise;
     })
   );
 });

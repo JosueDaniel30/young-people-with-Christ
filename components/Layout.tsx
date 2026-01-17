@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Home, Book, Trophy, User, Music, Sparkles, Bell, X, Moon, Sun, MessageCircle, Users, Info, Award, Calendar } from 'lucide-react';
+import { Home, Book, Trophy, User, Music, Sparkles, Bell, X, Moon, Sun, MessageCircle, Users, Info, Award, Calendar, Download } from 'lucide-react';
 import { loadDB, markNotificationsRead, updateUser } from '../store/db';
 import { Notification as NotificationType } from '../types';
 import { feedback } from '../services/audioFeedback';
@@ -9,7 +9,6 @@ interface LayoutProps {
   children: React.ReactNode;
   activeTab: string;
   setActiveTab: (tab: string) => void;
-  notifications?: NotificationType[]; // Añadido para sincronización opcional
 }
 
 const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) => {
@@ -17,33 +16,45 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
   const [showNotifications, setShowNotifications] = useState(false);
   const [state, setState] = useState(loadDB());
   const [activeToast, setActiveToast] = useState<NotificationType | null>(null);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const lastToastId = useRef<string | null>(null);
   
   const isDarkMode = state.user.theme === 'dark';
 
-  // Sincronizar estado local con DB periódicamente o ante cambios de pestaña
+  // Sincronización y PWA
   useEffect(() => {
+    // Escuchar el evento de instalación de PWA
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    });
+
     const interval = setInterval(() => {
       const currentState = loadDB();
       setState(currentState);
       
-      // Lógica de Toast: Si hay una notificación nueva no leída
       if (currentState.notifications.length > 0) {
         const latest = currentState.notifications[0];
         if (!latest.read && latest.id !== lastToastId.current) {
           lastToastId.current = latest.id;
           setActiveToast(latest);
           feedback.playNotification();
-          
-          // Auto-cerrar después de 5 segundos
-          setTimeout(() => {
-            setActiveToast(null);
-          }, 5000);
+          setTimeout(() => setActiveToast(null), 5000);
         }
       }
     }, 1000);
     return () => clearInterval(interval);
   }, []);
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      console.log('App instalada');
+    }
+    setDeferredPrompt(null);
+  };
 
   const navItems = [
     { id: 'home', icon: Home, label: 'Inicio' },
@@ -69,7 +80,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
     setShowNotifications(true);
     markNotificationsRead();
     setState(loadDB());
-    setActiveToast(null); // Cerrar toast si se abre el panel
+    setActiveToast(null);
   };
 
   const handleTabChange = (id: string) => {
@@ -90,13 +101,29 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
   return (
     <div className={`min-h-screen pb-24 flex flex-col transition-colors duration-500 ${isDarkMode ? 'dark bg-[#0f172a] text-slate-100' : 'bg-slate-50 text-slate-900'} relative overflow-x-hidden`}>
       
-      {/* Toast Notification Layer */}
+      {/* PWA Install Banner (Solo si está disponible) */}
+      {deferredPrompt && activeTab === 'profile' && (
+        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[60] w-[90%] max-w-sm animate-in fade-in slide-in-from-top-4 duration-500">
+          <div className={`p-4 rounded-3xl border-2 flex items-center justify-between shadow-2xl backdrop-blur-xl ${isDarkMode ? 'bg-indigo-600/90 border-indigo-400/30' : 'bg-[#1A3A63] border-white/20'} text-white`}>
+            <div className="flex items-center gap-3">
+              <Download className="w-5 h-5" />
+              <p className="text-xs font-black uppercase tracking-widest">Instala Ignite en tu móvil</p>
+            </div>
+            <button 
+              onClick={handleInstallClick}
+              className="bg-white text-indigo-900 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all"
+            >
+              Instalar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notifications */}
       {activeToast && (
         <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[1000] w-[90%] max-w-md animate-in slide-in-from-top-10 duration-500 ease-out">
           <div className={`p-5 rounded-[32px] border-2 shadow-[0_20px_50px_rgba(0,0,0,0.2)] backdrop-blur-2xl flex items-center gap-4 group transition-all ${
-            isDarkMode 
-              ? 'bg-slate-800/90 border-indigo-500/30 text-white' 
-              : 'bg-white/95 border-indigo-100 text-slate-800'
+            isDarkMode ? 'bg-slate-800/90 border-indigo-500/30 text-white' : 'bg-white/95 border-indigo-100 text-slate-800'
           }`}>
             <div className={`shrink-0 p-3 rounded-2xl ${isDarkMode ? 'bg-indigo-500/20' : 'bg-indigo-50'}`}>
               {getNotificationIcon(activeToast.type)}
@@ -105,15 +132,9 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
               <h4 className="font-black text-xs uppercase tracking-widest text-indigo-500 mb-0.5">{activeToast.title}</h4>
               <p className="text-sm font-bold truncate leading-tight">{activeToast.message}</p>
             </div>
-            <button 
-              onClick={() => setActiveToast(null)}
-              className="p-2 hover:bg-slate-500/10 rounded-full transition-colors"
-            >
+            <button onClick={() => setActiveToast(null)} className="p-2 hover:bg-slate-500/10 rounded-full transition-colors">
               <X className="w-4 h-4 text-slate-400" />
             </button>
-            <div className={`absolute bottom-0 left-6 right-6 h-1 rounded-full overflow-hidden ${isDarkMode ? 'bg-slate-700' : 'bg-slate-100'}`}>
-              <div className="h-full bg-indigo-500 animate-[progress-shrink_5s_linear_forwards]" />
-            </div>
           </div>
         </div>
       )}
@@ -123,12 +144,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
           <div className="flex items-center gap-3">
             <div className="bg-white p-1.5 rounded-xl flex items-center justify-center min-w-[36px] min-h-[36px] shadow-lg">
               {!logoError ? (
-                <img 
-                  src="./logojov.png" 
-                  alt="Logo" 
-                  className="w-8 h-8 object-contain"
-                  onError={() => setLogoError(true)}
-                />
+                <img src="./logojov.png" alt="Logo" className="w-8 h-8 object-contain" onError={() => setLogoError(true)} />
               ) : (
                 <span className="text-sm">✝️</span>
               )}
@@ -140,32 +156,12 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
           </div>
           
           <div className="flex items-center gap-3 sm:gap-4">
-            <button 
-              onClick={toggleTheme}
-              className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${isDarkMode ? 'bg-indigo-500/20 text-yellow-400 hover:bg-indigo-500/30' : 'bg-white/10 text-slate-200 hover:bg-white/20'}`}
-              title="Cambiar Tema"
-            >
+            <button onClick={toggleTheme} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${isDarkMode ? 'bg-indigo-500/20 text-yellow-400 hover:bg-indigo-500/30' : 'bg-white/10 text-slate-200 hover:bg-white/20'}`}>
               {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </button>
-
-            <button 
-              onClick={handleOpenNotifications}
-              className={`w-10 h-10 rounded-full flex items-center justify-center relative group transition-all duration-300 ${isDarkMode ? 'bg-slate-700/50 hover:bg-slate-600' : 'bg-white/10 hover:bg-white/20'}`}
-            >
+            <button onClick={handleOpenNotifications} className={`w-10 h-10 rounded-full flex items-center justify-center relative group transition-all duration-300 ${isDarkMode ? 'bg-slate-700/50 hover:bg-slate-600' : 'bg-white/10 hover:bg-white/20'}`}>
               <Bell className="w-5 h-5 text-white" />
-              {unreadCount > 0 && (
-                <span className="absolute top-0.5 right-0.5 w-4 h-4 bg-red-500 text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-[#1e293b] animate-bounce">
-                  {unreadCount}
-                </span>
-              )}
-            </button>
-
-            <button 
-              onClick={() => handleTabChange('chat')}
-              className={`w-10 h-10 rounded-full flex items-center justify-center relative overflow-hidden group transition-all duration-300 ${isDarkMode ? 'bg-amber-500/10' : 'bg-white/10'}`}
-            >
-              <div className={`absolute inset-0 group-hover:scale-150 transition-transform ${isDarkMode ? 'bg-amber-500/20' : 'bg-[#D97706]/20'}`}></div>
-              <Sparkles className={`w-4 h-4 relative z-10 ${isDarkMode ? 'text-amber-400' : 'text-[#D97706]'}`} />
+              {unreadCount > 0 && <span className="absolute top-0.5 right-0.5 w-4 h-4 bg-red-500 text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-[#1e293b] animate-bounce">{unreadCount}</span>}
             </button>
           </div>
         </div>
@@ -200,11 +196,6 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
                   <p className={`text-xs ml-7 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>{n.message}</p>
                 </div>
               ))}
-              {state.notifications.length === 0 && (
-                <div className="text-center py-10 text-slate-500 font-medium">
-                  No hay notificaciones nuevas
-                </div>
-              )}
             </div>
           </div>
         </div>
@@ -228,13 +219,6 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
           </button>
         ))}
       </nav>
-
-      <style dangerouslySetInnerHTML={{ __html: `
-        @keyframes progress-shrink {
-          from { width: 100%; }
-          to { width: 0%; }
-        }
-      `}} />
     </div>
   );
 };

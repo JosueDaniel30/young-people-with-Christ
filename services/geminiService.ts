@@ -1,17 +1,14 @@
 
 import { GoogleGenAI, Modality, Type } from "@google/genai";
 
-// Always use a single instance initialized with the environment variable API_KEY directly
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const analyzeVerse = async (verse: string) => {
-  // Use the singleton instance for content generation
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
     contents: `Analiza este versículo bíblico (Reina Valera 1960) para un público joven. Explica su significado práctico y cómo aplicarlo hoy: "${verse}"`,
     config: {
       temperature: 0.7,
-      thinkingConfig: { thinkingBudget: 0 }
     }
   });
   return response.text;
@@ -27,22 +24,16 @@ export interface BibleSearchParams {
 export const searchBible = async (params: string | BibleSearchParams) => {
   let prompt = "";
   if (typeof params === 'string') {
-    prompt = `Actúa como un buscador de la Biblia Reina Valera 1960. Encuentra los 5 versículos más relevantes para la búsqueda: "${params}". Responde en formato JSON.`;
+    prompt = `Como buscador RVR1960, encuentra 5 versículos clave sobre: "${params}". Devuelve JSON con campos: book, chapter, verse, text.`;
   } else {
-    const { query, book, chapter, verse } = params;
-    prompt = `Actúa como un buscador experto de la Biblia Reina Valera 1960.
-    Busca versículos con los siguientes criterios:
-    ${book ? `- Libro: ${book}` : ''}
-    ${chapter ? `- Capítulo: ${chapter}` : ''}
-    ${verse ? `- Versículo: ${verse}` : ''}
-    ${query ? `- Palabras clave: ${query}` : ''}
-    
-    Si se proporciona una referencia específica (libro, capítulo, versículo), devuélvela exactamente.
-    Si solo hay palabras clave, busca los 5 más relevantes.
-    Responde estrictamente en formato JSON siguiendo el esquema proporcionado.`;
+    const { book, chapter, verse } = params;
+    if (book && chapter && !verse) {
+      prompt = `Devuelve todos los versículos del capítulo ${chapter} de ${book} (Biblia Reina Valera 1960). Sé preciso. Responde estrictamente en formato JSON ARRAY.`;
+    } else {
+      prompt = `Busca en RVR1960: ${book || ''} ${chapter || ''} ${verse || ''} ${params.query || ''}. Responde JSON ARRAY con campos: book, chapter, verse, text.`;
+    }
   }
 
-  // Use the singleton instance for content generation with JSON response
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
     contents: prompt,
@@ -63,21 +54,20 @@ export const searchBible = async (params: string | BibleSearchParams) => {
       }
     }
   });
+  
   try {
-    // Extract text safely and parse JSON
     return JSON.parse(response.text?.trim() || '[]');
   } catch (e) {
-    console.error("Error parsing search results", e);
+    console.error("Error al parsear Biblia", e);
     return [];
   }
 };
 
 export const playAudio = async (text: string) => {
   try {
-    // Generate speech using the specific TTS model and modality
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash-preview-tts",
-      contents: [{ parts: [{ text: `Lee con voz inspiradora y clara: ${text}` }] }],
+      contents: [{ parts: [{ text }] }],
       config: {
         responseModalities: [Modality.AUDIO],
         speechConfig: {
@@ -92,54 +82,39 @@ export const playAudio = async (text: string) => {
     if (!base64Audio) return;
 
     const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
-    // Use manually implemented decode and decodeAudioData functions as per guidelines
-    const audioBuffer = await decodeAudioData(
-      decode(base64Audio),
-      audioContext,
-      24000,
-      1,
-    );
+    const audioBuffer = await decodeAudioData(decode(base64Audio), audioContext, 24000, 1);
     
     const source = audioContext.createBufferSource();
     source.buffer = audioBuffer;
     source.connect(audioContext.destination);
     source.start();
   } catch (error) {
-    console.error("Error generating audio", error);
+    console.error("Audio error", error);
   }
 };
 
-// New Bible Chat initialization
 export const createBibleChat = () => {
   return ai.chats.create({
     model: 'gemini-3-flash-preview',
     config: {
-      systemInstruction: 'Eres un mentor espiritual para jóvenes de una iglesia cristiana. Respondes preguntas sobre la Biblia (Reina Valera 1960), fe, vida cristiana y dudas sobre la iglesia con un tono empático, moderno, esperanzador y bíblico. Tus respuestas deben ser breves pero profundas, usando un lenguaje que un adolescente o joven adulto entienda.',
+      systemInstruction: 'Eres un mentor Ignite para jóvenes. Usas RVR60. Tono: inspirador, moderno, profundo. Respuestas breves pero sólidas.',
     },
   });
 };
 
-// Manually implemented decoding functions following the provided guidelines
 function decode(base64: string) {
   const binaryString = atob(base64);
-  const len = binaryString.length;
-  const bytes = new Uint8Array(len);
-  for (let i = 0; i < len; i++) {
+  const bytes = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i++) {
     bytes[i] = binaryString.charCodeAt(i);
   }
   return bytes;
 }
 
-async function decodeAudioData(
-  data: Uint8Array,
-  ctx: AudioContext,
-  sampleRate: number,
-  numChannels: number,
-): Promise<AudioBuffer> {
+async function decodeAudioData(data: Uint8Array, ctx: AudioContext, sampleRate: number, numChannels: number): Promise<AudioBuffer> {
   const dataInt16 = new Int16Array(data.buffer);
   const frameCount = dataInt16.length / numChannels;
   const buffer = ctx.createBuffer(numChannels, frameCount, sampleRate);
-
   for (let channel = 0; channel < numChannels; channel++) {
     const channelData = buffer.getChannelData(channel);
     for (let i = 0; i < frameCount; i++) {
