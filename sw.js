@@ -1,7 +1,7 @@
 
-const CACHE_NAME = 'ignite-v1.2-stable';
+// Service Worker para Ignite Youth
+const CACHE_NAME = 'ignite-v1.3-stable';
 const STATIC_ASSETS = [
-  './',
   './index.html',
   './manifest.json',
   'LOGO.png',
@@ -10,12 +10,15 @@ const STATIC_ASSETS = [
 ];
 
 self.addEventListener('install', (event) => {
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_ASSETS);
+      // Intentamos cachear los assets, ignorando errores individuales para no romper la instalación
+      return Promise.allSettled(
+        STATIC_ASSETS.map(url => cache.add(url).catch(err => console.warn(`Error cacheando ${url}:`, err)))
+      );
     })
   );
-  self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
@@ -32,15 +35,19 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Excluir API de Gemini
+  // Excluir API de Gemini de la caché
   if (url.hostname.includes('generativelanguage.googleapis.com')) return;
+  
+  // No cachear peticiones que no sean GET
+  if (event.request.method !== 'GET') return;
 
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       if (cachedResponse) return cachedResponse;
 
       return fetch(event.request).then((networkResponse) => {
-        if (networkResponse && networkResponse.status === 200 && event.request.method === 'GET') {
+        // Solo cachear respuestas válidas del mismo origen o de CDNs confiables
+        if (networkResponse && networkResponse.status === 200) {
           const responseClone = networkResponse.clone();
           caches.open(CACHE_NAME).then((cache) => {
             cache.put(event.request, responseClone);
@@ -48,6 +55,7 @@ self.addEventListener('fetch', (event) => {
         }
         return networkResponse;
       }).catch(() => {
+        // Fallback para navegación offline
         if (event.request.mode === 'navigate') {
           return caches.match('./index.html');
         }

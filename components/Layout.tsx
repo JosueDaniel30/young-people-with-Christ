@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Home, Book, Trophy, User, Music, Sparkles, Bell, X, Moon, Sun, MessageCircle, Users, Info, Award, Calendar, Download } from 'lucide-react';
+import { Home, Book, Trophy, User, Music, Sparkles, Bell, X, Moon, Sun, MessageCircle, Users, Info, Award, Calendar, Download, MoreVertical, Smartphone } from 'lucide-react';
 import { loadDB, markNotificationsRead, updateUser } from '../store/db';
 import { Notification as NotificationType } from '../types';
 import { feedback } from '../services/audioFeedback';
@@ -17,18 +17,21 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
   const [state, setState] = useState(loadDB());
   const [activeToast, setActiveToast] = useState<NotificationType | null>(null);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [showInstallHelp, setShowInstallHelp] = useState(false);
   const lastToastId = useRef<string | null>(null);
   
   const isDarkMode = state.user.theme === 'dark';
 
-  // Sincronización y PWA
   useEffect(() => {
     // Escuchar el evento de instalación de PWA
-    window.addEventListener('beforeinstallprompt', (e) => {
+    const handleBeforeInstall = (e: any) => {
       e.preventDefault();
       setDeferredPrompt(e);
-    });
+    };
 
+    window.addEventListener('beforeinstallprompt', handleBeforeInstall);
+
+    // Sincronización de estado y notificaciones
     const interval = setInterval(() => {
       const currentState = loadDB();
       setState(currentState);
@@ -43,17 +46,25 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
         }
       }
     }, 1000);
-    return () => clearInterval(interval);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+      clearInterval(interval);
+    };
   }, []);
 
   const handleInstallClick = async () => {
-    if (!deferredPrompt) return;
+    feedback.playClick();
+    if (!deferredPrompt) {
+      setShowInstallHelp(true);
+      return;
+    }
     deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
     if (outcome === 'accepted') {
       console.log('App instalada');
+      setDeferredPrompt(null);
     }
-    setDeferredPrompt(null);
   };
 
   const navItems = [
@@ -101,20 +112,62 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
   return (
     <div className={`min-h-screen pb-24 flex flex-col transition-colors duration-500 ${isDarkMode ? 'dark bg-[#0f172a] text-slate-100' : 'bg-slate-50 text-slate-900'} relative overflow-x-hidden`}>
       
-      {/* PWA Install Banner (Solo si está disponible) */}
-      {deferredPrompt && activeTab === 'profile' && (
-        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[60] w-[90%] max-w-sm animate-in fade-in slide-in-from-top-4 duration-500">
-          <div className={`p-4 rounded-3xl border-2 flex items-center justify-between shadow-2xl backdrop-blur-xl ${isDarkMode ? 'bg-indigo-600/90 border-indigo-400/30' : 'bg-[#1A3A63] border-white/20'} text-white`}>
+      {/* PWA Install Banner (Más visible en Android) */}
+      {(deferredPrompt || activeTab === 'profile') && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[60] w-[95%] max-w-sm animate-in fade-in slide-in-from-top-4 duration-500">
+          <div className={`p-4 rounded-3xl border-2 flex items-center justify-between shadow-2xl backdrop-blur-xl ${isDarkMode ? 'bg-indigo-600/95 border-indigo-400/30' : 'bg-[#1A3A63] border-white/20'} text-white`}>
             <div className="flex items-center gap-3">
-              <Download className="w-5 h-5" />
-              <p className="text-xs font-black uppercase tracking-widest">Instala Ignite en tu móvil</p>
+              <div className="bg-white/20 p-2 rounded-xl">
+                <Smartphone className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest leading-none mb-1">Descarga Ignite</p>
+                <p className="text-[9px] opacity-70">Instala la app en tu Android</p>
+              </div>
             </div>
             <button 
               onClick={handleInstallClick}
-              className="bg-white text-indigo-900 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all"
+              className="bg-white text-indigo-900 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-lg"
             >
-              Instalar
+              {deferredPrompt ? 'Instalar' : '¿Cómo?'}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Manual Install Help for Android */}
+      {showInstallHelp && (
+        <div className="fixed inset-0 z-[200] bg-black/80 backdrop-blur-xl flex items-center justify-center p-6 animate-in fade-in duration-300">
+          <div className={`${isDarkMode ? 'bg-slate-900 border-slate-700' : 'bg-white'} w-full max-w-sm rounded-[40px] border-4 border-indigo-500/30 overflow-hidden shadow-2xl animate-in zoom-in-95 duration-500`}>
+            <div className="p-8 text-center space-y-6">
+              <div className="w-20 h-20 bg-indigo-500/10 rounded-full flex items-center justify-center mx-auto">
+                <Download className="w-10 h-10 text-indigo-500" />
+              </div>
+              <div className="space-y-2">
+                <h3 className={`text-2xl font-black uppercase tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-800'}`}>Instalación Android</h3>
+                <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">Si el botón no aparece, sigue esto:</p>
+              </div>
+              <div className={`p-6 rounded-3xl text-left space-y-4 ${isDarkMode ? 'bg-slate-800' : 'bg-slate-50'}`}>
+                <div className="flex items-center gap-3">
+                  <span className="w-6 h-6 bg-indigo-600 text-white rounded-full flex items-center justify-center text-[10px] font-black">1</span>
+                  <p className="text-xs font-bold">Toca los <MoreVertical className="inline w-4 h-4" /> (3 puntos) en la esquina de Chrome.</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="w-6 h-6 bg-indigo-600 text-white rounded-full flex items-center justify-center text-[10px] font-black">2</span>
+                  <p className="text-xs font-bold">Busca "Instalar aplicación" o "Añadir a pantalla de inicio".</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="w-6 h-6 bg-indigo-600 text-white rounded-full flex items-center justify-center text-[10px] font-black">3</span>
+                  <p className="text-xs font-bold text-indigo-500">¡Listo! Ya la tendrás en tu menú como una App real.</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowInstallHelp(false)}
+                className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl active:scale-95 transition-all"
+              >
+                Entendido
+              </button>
+            </div>
           </div>
         </div>
       )}
