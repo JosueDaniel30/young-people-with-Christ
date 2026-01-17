@@ -4,7 +4,7 @@
   "name": "Jóvenes con Cristo - Ignite",
   "short_name": "Ignite",
   "description": "Comunidad vibrante para jóvenes con Biblia RVR1960, metas y mentoría IA.",
-  "start_url": "./",
+  "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
@@ -12,22 +12,24 @@
   "theme_color": "#1A3A63",
   "icons": [
     {
-      "src": "./logojov.png",
+      "src": "logojov.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "./logojov.png",
+      "src": "logojov.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "./logojov.png",
+      "src": "logojov.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "maskable"
     }
-  ]
+  ],
+  "categories": ["lifestyle", "education", "social"],
+  "prefer_related_applications": false
 }

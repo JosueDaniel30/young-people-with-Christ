@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Play, Sparkles, BookOpen, Share2, Volume2, Quote, Flame, ChevronRight, Zap, MessageSquare } from 'lucide-react';
+import { Play, Sparkles, BookOpen, Share2, Volume2, Quote, Flame, ChevronRight, Zap, MessageSquare, Smartphone, Download } from 'lucide-react';
 import { BibleVerse, User, Study } from '../types';
 import { analyzeVerse, playAudio } from '../services/geminiService';
 import { updateGoalProgress, loadDB } from '../store/db';
@@ -167,6 +167,26 @@ const Home: React.FC<{ user: User, refreshState: () => void, setActiveTab: (t: s
           </button>
         </div>
       </div>
+
+      {/* PWA CTA Card for Android Users */}
+      <section className={`rounded-[40px] p-8 border-2 flex flex-col md:flex-row items-center justify-between gap-8 transition-all ${isDarkMode ? 'bg-indigo-500/5 border-indigo-500/20' : 'bg-indigo-50 border-indigo-100 shadow-sm'}`}>
+        <div className="flex items-center gap-5">
+           <div className="w-16 h-16 bg-white rounded-3xl flex items-center justify-center shadow-lg shrink-0">
+              <Smartphone className="w-8 h-8 text-indigo-600" />
+           </div>
+           <div>
+             <h3 className={`text-xl font-black uppercase tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-800'}`}>Lleva Ignite en tu móvil</h3>
+             <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">Instala la app para acceso offline y mayor rapidez.</p>
+           </div>
+        </div>
+        <button 
+          onClick={() => { feedback.playClick(); setActiveTab('profile'); }}
+          className="flex items-center gap-3 px-8 py-4 bg-indigo-600 text-white rounded-[24px] font-black text-xs uppercase tracking-[0.2em] shadow-xl hover:scale-105 transition-all"
+        >
+          <Download className="w-5 h-5" />
+          Instalar Ahora
+        </button>
+      </section>
 
       {/* AI Analysis Result Section */}
       {analysis && (
