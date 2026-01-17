@@ -1,7 +1,7 @@
 
 {
   "id": "com.ignite.youth.app.v1",
-  "name": "Jóvenes con Cristo - Ignite",
+  "name": "Jóvenes con Cristo",
   "short_name": "Ignite",
   "description": "Comunidad vibrante para jóvenes con Biblia RVR1960, metas y mentoría IA.",
   "start_url": "./index.html",

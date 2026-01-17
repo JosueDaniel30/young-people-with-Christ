@@ -67,8 +67,10 @@ const Auth: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
         <div className="relative mb-6 group">
           <div className="bg-white p-4 rounded-[32px] shadow-2xl flex items-center justify-center min-w-[140px] min-h-[140px] sm:min-w-[180px] sm:min-h-[180px] transition-transform duration-500 group-hover:scale-105 border-4 border-white/10">
             <div className="flex flex-col items-center text-[#1A3A63] font-black">
-              <span className="text-6xl sm:text-7xl">✝️</span>
-              <span className="text-xs uppercase tracking-[0.3em] mt-2">Ignite</span>
+              <span className="text-6xl sm:text-7xl">
+              <img src="LOGOJOV.png" alt="Logo" className="w-40 h-40 rounded-full object-cover border-4 border-white dark:border-slate-800" />
+              </span>
+              <span className="text-xs uppercase tracking-[0.3em] mt-2">Jóvenes con Cristo</span>
             </div>
           </div>
           <div className="absolute -top-2 -right-2 bg-red-500 w-8 h-8 rounded-xl flex items-center justify-center shadow-lg animate-bounce">

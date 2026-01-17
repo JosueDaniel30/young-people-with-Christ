@@ -7,7 +7,7 @@ export const INITIAL_USER: User = {
   id: '1',
   name: 'Joven Ignite',
   email: 'joven123@gmial.com',
-  photoUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=IgniteYouth',
+  photoUrl: 'LOGOJOV.png',
   points: 1250,
   badges: [],
   theme: 'light',
@@ -74,7 +74,7 @@ export const STUDIES: Study[] = [
     title: 'Identidad en Cristo',
     description: 'Descubre quién eres según la Palabra.',
     category: 'Jóvenes',
-    image: 'https://images.unsplash.com/photo-1504052434139-44b53d63bc31?auto=format&fit=crop&q=80&w=800',
+    image: 'LOGOJOV.png',
     content: 'En la Biblia Reina Valera 1960, Efesios 2:10 nos dice que somos hechura suya...'
   },
   {
@@ -82,7 +82,7 @@ export const STUDIES: Study[] = [
     title: 'Propósito y Llamado',
     description: '¿Cuál es el plan de Dios para tu vida?',
     category: 'Crecimiento',
-    image: 'https://images.unsplash.com/photo-1490730141103-6cac27aaab94?auto=format&fit=crop&q=80&w=800',
+    image: 'LOGOJOV.png',
     content: 'Jeremías 29:11 es un pilar fundamental para entender los planes de bienestar...'
   }
 ];
