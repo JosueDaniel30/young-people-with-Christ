@@ -144,7 +144,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
           <div className="flex items-center gap-3">
             <div className="bg-white p-1.5 rounded-xl flex items-center justify-center min-w-[36px] min-h-[36px] shadow-lg">
               {!logoError ? (
-                <img src="./logojov.png" alt="Logo" className="w-8 h-8 object-contain" onError={() => setLogoError(true)} />
+                <img src="LOGO.png" alt="Logo" className="w-8 h-8 object-contain" onError={() => setLogoError(true)} />
               ) : (
                 <span className="text-sm">✝️</span>
               )}

@@ -44,7 +44,7 @@ const Auth: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
           <div className="bg-white p-6 rounded-[40px] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.3)] flex items-center justify-center min-w-[180px] min-h-[180px] sm:min-w-[220px] sm:min-h-[220px] transition-transform duration-500 group-hover:scale-105 border-4 border-white/10">
             {!imgError ? (
               <img 
-                src="./logojov.png" 
+                src="LOGO.png" 
                 alt="Jóvenes con Cristo Logo" 
                 className="w-36 h-36 sm:w-44 sm:h-44 object-contain drop-shadow-sm"
                 onError={() => setImgError(true)}

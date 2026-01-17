@@ -104,7 +104,7 @@ const Profile: React.FC<ProfileProps> = ({ user, refreshState, onLogout }) => {
               alt="User" 
               className="w-40 h-40 rounded-full object-cover border-4 border-white dark:border-slate-800" 
               onError={(e) => {
-                e.currentTarget.src = './logojov.png';
+                e.currentTarget.src = 'LOGO.png';
               }}
             />
           </div>

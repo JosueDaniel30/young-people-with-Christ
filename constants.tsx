@@ -7,7 +7,7 @@ export const INITIAL_USER: User = {
   id: '1',
   name: 'Joven Ignite',
   email: 'joven@iglesia.com',
-  photoUrl: './logojov.png',
+  photoUrl: 'LOGO.png',
   points: 1250,
   badges: [],
   theme: 'light',
@@ -82,7 +82,7 @@ export const STUDIES: Study[] = [
     title: 'Propósito y Llamado',
     description: '¿Cuál es el plan de Dios para tu vida?',
     category: 'Crecimiento',
-    image: './logojov.png',
+    image: 'LOGO.png',
     content: 'Jeremías 29:11 es un pilar fundamental para entender los planes de bienestar...'
   }
 ];
