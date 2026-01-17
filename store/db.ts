@@ -23,9 +23,9 @@ const DEFAULT_REFLECTIONS: Reflection[] = [
     id: 'r1',
     userId: 'system',
     userName: 'Líder Juvenil',
-    userPhoto: 'https://i.pravatar.cc/150?u=lider',
+    userPhoto: './logojov.png',
     verseReference: 'Filipenses 4:13',
-    text: 'Este versículo me recuerda que mi fuerza no viene de mis habilidades, sino de mi dependencia total en Dios.',
+    text: 'Este versículo me recuerda que mi fuerza no viene de mis habilidades, sino de mi dependencia total en Dios. ¡Bienvenidos a todos!',
     timestamp: 'Hace 2 horas',
     likes: 12
   }
@@ -47,6 +47,10 @@ export const loadDB = (): DBState => {
   const parsed = JSON.parse(data);
   if (!parsed.user.favorites) parsed.user.favorites = [];
   if (!parsed.reflections) parsed.reflections = DEFAULT_REFLECTIONS;
+  // Asegurar que si no hay foto, se use el logo oficial
+  if (!parsed.user.photoUrl || parsed.user.photoUrl.includes('pravatar')) {
+    parsed.user.photoUrl = './logojov.png';
+  }
   return parsed;
 };
 

@@ -42,11 +42,11 @@ const Auth: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
     setError('');
     setIsLoading(true);
 
-    // Simulación de proceso de autenticación
+    // Simulación de proceso de autenticación exitoso
     setTimeout(() => {
       setIsLoading(false);
       onLogin();
-    }, 1500);
+    }, 1200);
   };
 
   const handleSocialLogin = (provider: string) => {
@@ -54,13 +54,11 @@ const Auth: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
     setIsLoading(true);
     setError('');
     
-    // Simulación de ventana emergente de Google/Facebook
-    console.log(`Iniciando sesión con ${provider}...`);
-    
+    // Simulación de autenticación con proveedor externo
     setTimeout(() => {
       setIsLoading(false);
       onLogin();
-    }, 2000);
+    }, 1800);
   };
 
   return (
@@ -82,7 +80,7 @@ const Auth: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
             ) : (
               <div className="flex flex-col items-center text-[#1A3A63] font-black">
                 <span className="text-4xl">✝️</span>
-                <span className="text-xs">IGNITE</span>
+                <span className="text-xs uppercase tracking-widest">Ignite</span>
               </div>
             )}
           </div>
@@ -118,7 +116,7 @@ const Auth: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
                   type="text" 
                   value={name}
                   onChange={e => setName(e.target.value)}
-                  placeholder="Ej: Juan Pérez" 
+                  placeholder="Tu nombre real" 
                   className="w-full bg-slate-50 border-2 border-transparent rounded-2xl px-5 py-3.5 text-slate-700 focus:bg-white focus:border-indigo-500 transition-all outline-none text-sm font-semibold shadow-inner"
                 />
               </div>
@@ -133,7 +131,7 @@ const Auth: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
                   setEmail(e.target.value);
                   if (error) setError('');
                 }}
-                placeholder="tu@email.com" 
+                placeholder="correo@ejemplo.com" 
                 className={`w-full bg-slate-50 border-2 rounded-2xl px-5 py-3.5 text-slate-700 focus:bg-white transition-all outline-none text-sm font-semibold shadow-inner ${
                   error && !email ? 'border-red-400' : 'border-transparent focus:border-indigo-500'
                 }`}
@@ -146,7 +144,7 @@ const Auth: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
                 type="password" 
                 value={pass}
                 onChange={e => setPass(e.target.value)}
-                placeholder="••••••••" 
+                placeholder="Contraseña segura" 
                 className="w-full bg-slate-50 border-2 border-transparent rounded-2xl px-5 py-3.5 text-slate-700 focus:bg-white focus:border-indigo-500 transition-all outline-none text-sm font-semibold shadow-inner"
               />
             </div>
