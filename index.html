@@ -82,16 +82,15 @@
 </head>
 <body class="bg-slate-50 text-slate-900 overflow-x-hidden">
     <div id="root"></div>
+    <!-- Punto de entrada explícito para GitHub Pages -->
+    <script type="module" src="./index.tsx"></script>
     <script>
       // Registro de Service Worker con manejo de errores robusto
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          // Usamos una ruta relativa simple. El navegador la resolverá automáticamente
-          // basándose en la ubicación del documento actual, evitando errores de construcción de URL.
-          navigator.serviceWorker.register('sw.js')
+          navigator.serviceWorker.register('./sw.js')
             .then(reg => {
               console.log('Service Worker registrado correctamente.');
-              
               reg.onupdatefound = () => {
                 const installingWorker = reg.installing;
                 if (installingWorker) {
@@ -106,8 +105,6 @@
               };
             })
             .catch(err => {
-              // Capturamos cualquier error (incluyendo Cross-Origin o URL inválida) 
-              // para que la aplicación principal siga funcionando.
               console.warn('Registro de Service Worker omitido:', err.message);
             });
         });
