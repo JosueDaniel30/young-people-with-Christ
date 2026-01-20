@@ -1,13 +1,22 @@
-
 export interface User {
   id: string;
   name: string;
   email: string;
   photoUrl: string;
   points: number;
+  streak: number;
+  level: number;
+  lastLoginDate: string; // ISO String
   badges: Badge[];
   theme: 'light' | 'dark';
   favorites: BibleVerse[];
+  notificationsEnabled: boolean;
+  notificationPrefs: {
+    dailyVerse: boolean;
+    goals: boolean;
+    community: boolean;
+  };
+  xpHistory?: { date: string; points: number }[]; // Historial para el gráfico
 }
 
 export interface Reflection {
@@ -19,6 +28,8 @@ export interface Reflection {
   text: string;
   timestamp: string;
   likes: number;
+  tags?: string[];
+  synced?: boolean;
 }
 
 export interface Notification {
@@ -48,6 +59,7 @@ export interface Goal {
   progress: number;
   total: number;
   completed: boolean;
+  synced?: boolean;
 }
 
 export interface BibleVerse {
@@ -55,6 +67,13 @@ export interface BibleVerse {
   chapter: number;
   verse: number;
   text: string;
+  title?: string; // Título de la historia o sección (opcional)
+}
+
+export interface CachedChapter {
+  book: string;
+  chapter: number;
+  verses: BibleVerse[];
 }
 
 export interface Study {

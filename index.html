@@ -1,68 +1,101 @@
 
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" class="scroll-smooth">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Jóvenes con Cristo</title>
+    <title>Ignite Youth - Jóvenes con Cristo</title>
     
-    <!-- PWA & Mobile Optimization -->
-    <meta name="theme-color" content="#1A3A63">
+    <meta name="theme-color" content="#7c3aed">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Ignite">
+    
+    <link rel="icon" type="image/png" sizes="32x32" href="https://api.dicebear.com/7.x/shapes/png?seed=Ignite&backgroundColor=7c3aed">
     <link rel="manifest" href="./manifest.json">
     
-    <!-- SEO & Metatags -->
-    <meta name="description" content="Aplicación oficial de Jóvenes con Cristo. Biblia RVR60, Mentoría con IA y Metas Espirituales.">
-
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Lora:ital,wght@1,400;1,700&family=Playfair+Display:ital,wght@1,900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Plus Jakarta Sans', 'sans-serif'],
+              heading: ['Space Grotesk', 'sans-serif'],
+            },
+            animation: {
+              'bounce-slow': 'bounce-slow 4s infinite ease-in-out',
+              'gradient-xy': 'gradient-xy 6s ease infinite',
+            },
+            keyframes: {
+              'bounce-slow': {
+                '0%, 100%': { transform: 'translateY(-5%)' },
+                '50%': { transform: 'translateY(5%)' },
+              },
+              'gradient-xy': {
+                '0%, 100%': {
+                  'background-size': '400% 400%',
+                  'background-position': 'left center'
+                },
+                '50%': {
+                  'background-size': '400% 400%',
+                  'background-position': 'right center'
+                }
+              }
+            }
+          }
+        }
+      }
+    </script>
+
     <style>
+        :root {
+            --brand-primary: #7c3aed;
+            --bg-light: #f8faff;
+            --bg-dark: #030014;
+        }
+
+        /* Safe Area Support */
+        .safe-pb { padding-bottom: env(safe-area-inset-bottom); }
+        .safe-pt { padding-top: env(safe-area-inset-top); }
+
+        html { background-color: var(--bg-light); }
+        html.dark { background-color: var(--bg-dark); }
+
         body { 
-            font-family: 'Plus Jakarta Sans', sans-serif; 
             -webkit-tap-highlight-color: transparent;
             overscroll-behavior-y: contain;
-        }
-        .font-serif-italic { font-family: 'Lora', serif; font-style: italic; }
-        .font-display { font-family: 'Playfair Display', serif; font-style: italic; font-weight: 900; }
-        
-        @keyframes shimmer {
-            0% { background-position: -1000px 0; }
-            100% { background-position: 1000px 0; }
-        }
-        .skeleton {
-            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-            background-size: 1000px 100%;
-            animation: shimmer 2s infinite linear;
-        }
-        .dark .skeleton {
-            background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
-            background-size: 1000px 100%;
+            transition: background-color 0.3s ease;
+            min-height: 100dvh;
         }
         
-        .mesh-bg {
-            background: linear-gradient(-45deg, #0f172a, #1e1b4b, #312e81, #1e293b);
-            background-size: 400% 400%;
-            animation: mesh-gradient 15s ease infinite;
+        .glass {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(124, 58, 237, 0.1);
         }
-        .mesh-bg-light {
-            background: linear-gradient(-45deg, #4f46e5, #7c3aed, #2563eb, #3b82f6);
-            background-size: 400% 400%;
-            animation: mesh-gradient 15s ease infinite;
+        .dark .glass {
+            background: rgba(15, 10, 40, 0.6);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
         }
-        @keyframes mesh-gradient {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
-        }
-        .scrollbar-hide::-webkit-scrollbar { display: none; }
 
-        @supports (padding: env(safe-area-inset-top)) {
-          header {
-            padding-top: env(safe-area-inset-top);
-          }
+        .mesh-gradient {
+            background-image: radial-gradient(at 0% 0%, rgba(124, 58, 237, 0.05) 0, transparent 50%), 
+                              radial-gradient(at 100% 0%, rgba(244, 63, 94, 0.05) 0, transparent 50%);
+        }
+        .dark .mesh-gradient {
+            background-image: radial-gradient(at 0% 0%, rgba(124, 58, 237, 0.15) 0, transparent 50%), 
+                              radial-gradient(at 100% 0%, rgba(244, 63, 94, 0.1) 0, transparent 50%);
+        }
+
+        @keyframes gradient-xy {
+          0%, 100% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
         }
     </style>
     
@@ -73,26 +106,14 @@
         "react": "https://esm.sh/react@^19.2.3",
         "@google/genai": "https://esm.sh/@google/genai@^1.37.0",
         "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
-        "react-dom/": "https://esm.sh/react-dom@^19.2.3/"
+        "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+        "recharts": "https://esm.sh/recharts@2.12.7"
       }
     }
     </script>
 </head>
-<body class="bg-slate-50 text-slate-900 overflow-x-hidden">
+<body class="mesh-gradient min-h-[100dvh]">
     <div id="root"></div>
     <script type="module" src="./index.tsx"></script>
-    <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('./sw.js')
-            .then(reg => {
-              console.log('Service Worker registrado correctamente.');
-            })
-            .catch(err => {
-              console.warn('Registro de Service Worker omitido:', err.message);
-            });
-        });
-      }
-    </script>
 </body>
 </html>

@@ -1,96 +1,145 @@
 
 import { User, Goal, Badge, Playlist, Notification, BibleVerse, Reflection } from '../types';
-import { INITIAL_USER, INITIAL_GOALS, PLAYLISTS, BADGES } from '../constants';
+import { INITIAL_USER, INITIAL_GOALS, PLAYLISTS } from '../constants';
 import { feedback } from '../services/audioFeedback';
+import { db, auth } from '../services/firebaseConfig';
+import { 
+  doc, 
+  setDoc, 
+  getDoc, 
+  updateDoc, 
+  collection, 
+  query, 
+  orderBy, 
+  limit, 
+  getDocs, 
+  addDoc,
+  serverTimestamp 
+} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 const DB_KEY = 'ignite_youth_db';
+const UPDATE_EVENT = 'ignite_db_update';
 
-interface DBState {
-  user: User;
-  goals: Goal[];
-  playlists: Playlist[];
-  notifications: Notification[];
-  reflections: Reflection[];
-}
-
-const DEFAULT_NOTIFICATIONS: Notification[] = [
-  { id: '1', title: '¡Bienvenido!', message: 'Gracias por unirte a Jóvenes con Cristo.', time: 'Reciente', read: false, type: 'info' },
-  { id: '2', title: 'Nuevo Estudio', message: 'Se ha publicado "Caminando en su Palabra".', time: 'hace 2h', read: false, type: 'event' }
-];
-
-const DEFAULT_REFLECTIONS: Reflection[] = [
-  {
-    id: 'r1',
-    userId: 'system',
-    userName: 'Líder Juvenil',
-    userPhoto: 'https://api.dicebear.com/7.x/bottts/svg?seed=Leader',
-    verseReference: 'Filipenses 4:13',
-    text: 'Este versículo me recuerda que mi fuerza no viene de mis habilidades, sino de mi dependencia total en Dios. ¡Bienvenidos a todos!',
-    timestamp: 'Hace 2 horas',
-    likes: 12
-  }
-];
-
-export const loadDB = (): DBState => {
+export const loadDB = () => {
   const data = localStorage.getItem(DB_KEY);
-  if (!data) {
-    const initialState: DBState = {
-      user: { ...INITIAL_USER, theme: 'light' } as User,
-      goals: INITIAL_GOALS,
-      playlists: PLAYLISTS,
-      notifications: DEFAULT_NOTIFICATIONS,
-      reflections: DEFAULT_REFLECTIONS,
-    };
-    saveDB(initialState);
-    return initialState;
-  }
-  const parsed = JSON.parse(data);
-  if (!parsed.user.favorites) parsed.user.favorites = [];
-  if (!parsed.reflections) parsed.reflections = DEFAULT_REFLECTIONS;
-  if (!parsed.user.photoUrl) {
-    parsed.user.photoUrl = 'https://api.dicebear.com/7.x/avataaars/svg?seed=User';
-  }
-  return parsed;
+  if (!data) return { user: INITIAL_USER, goals: INITIAL_GOALS, playlists: PLAYLISTS, notifications: [], reflections: [], bibleCache: [] };
+  return JSON.parse(data);
 };
 
-export const saveDB = (state: DBState) => {
+export const saveDB = (state: any) => {
   localStorage.setItem(DB_KEY, JSON.stringify(state));
+  window.dispatchEvent(new CustomEvent(UPDATE_EVENT));
 };
 
-export const updateUser = (updater: (user: User) => User) => {
+export const updateUser = (updater: (u: User) => User) => {
   const state = loadDB();
   state.user = updater(state.user);
   saveDB(state);
+  syncUserToFirebase(state.user);
 };
 
-export const addReflection = (reflection: Omit<Reflection, 'id' | 'timestamp' | 'likes'>) => {
+export const markNotificationsRead = () => {
   const state = loadDB();
-  const newReflection: Reflection = {
-    ...reflection,
-    id: Date.now().toString(),
-    timestamp: 'Ahora mismo',
-    likes: 0
-  };
-  state.reflections.unshift(newReflection);
-  state.user.points += 50; 
+  state.notifications = state.notifications.map((n: any) => ({ ...n, read: true }));
   saveDB(state);
-  feedback.playSuccess();
 };
 
-export const likeReflection = (id: string) => {
+export const handleDailyCheckIn = () => {
   const state = loadDB();
-  const reflection = state.reflections.find(r => r.id === id);
-  if (reflection) {
-    reflection.likes += 1;
+  const today = new Date().toISOString().split('T')[0];
+  const lastLogin = state.user.lastLoginDate.split('T')[0];
+  
+  if (lastLogin !== today) {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split('T')[0];
+    
+    if (lastLogin === yesterdayStr) {
+      state.user.streak += 1;
+    } else {
+      state.user.streak = 1;
+    }
+    state.user.lastLoginDate = new Date().toISOString();
     saveDB(state);
-    feedback.playClick();
+    addFEPoints(10, 'Inicio de sesión diario');
+  }
+};
+
+export const syncUserToLeaderboard = async () => {
+  const state = loadDB();
+  await syncUserToFirebase(state.user);
+};
+
+export const addNotification = (title: string, message: string, type: 'info' | 'award' | 'event' = 'info') => {
+  const state = loadDB();
+  state.notifications.unshift({
+    id: Date.now().toString(),
+    title,
+    message,
+    time: 'Ahora',
+    read: false,
+    type
+  });
+  saveDB(state);
+};
+
+export const addFEPoints = async (amount: number, reason: string = 'Actividad') => {
+  const state = loadDB();
+  state.user.points += amount;
+  
+  if (!state.user.xpHistory) state.user.xpHistory = [];
+  state.user.xpHistory.push({
+    date: new Date().toISOString(),
+    points: state.user.points
+  });
+  
+  if (auth.currentUser) {
+    const userRef = doc(db, "users", auth.currentUser.uid);
+    await updateDoc(userRef, {
+      points: state.user.points,
+      xpHistory: state.user.xpHistory,
+      lastActivity: serverTimestamp()
+    });
+  }
+  
+  saveDB(state);
+};
+
+export const addGoal = (goal: Partial<Goal>) => {
+  const state = loadDB();
+  const newGoal: Goal = {
+    id: Date.now().toString(),
+    title: goal.title || 'Nueva Meta',
+    type: goal.type || 'Bronce',
+    period: goal.period || 'Diario',
+    progress: 0,
+    total: goal.total || 1,
+    completed: false
+  };
+  state.goals.push(newGoal);
+  saveDB(state);
+};
+
+export const updateGoalProgress = (id: string, amount: number) => {
+  const state = loadDB();
+  const goal = state.goals.find((g: Goal) => g.id === id);
+  if (goal && !goal.completed) {
+    goal.progress += amount;
+    if (goal.progress >= goal.total) {
+      goal.progress = goal.total;
+      goal.completed = true;
+      addFEPoints(200, `Meta completada: ${goal.title}`);
+      addNotification('¡Misión Cumplida!', `Has completado: ${goal.title}`, 'award');
+      feedback.playSuccess();
+    }
+    saveDB(state);
   }
 };
 
 export const toggleFavorite = (verse: BibleVerse) => {
   const state = loadDB();
-  const index = state.user.favorites.findIndex(v => 
-    v.book === verse.book && v.chapter === verse.chapter && v.verse === verse.verse
+  const index = state.user.favorites.findIndex((f: any) => 
+    f.book === verse.book && f.chapter === verse.chapter && f.verse === verse.verse
   );
   if (index >= 0) {
     state.user.favorites.splice(index, 1);
@@ -100,42 +149,95 @@ export const toggleFavorite = (verse: BibleVerse) => {
   saveDB(state);
 };
 
-export const updateGoalProgress = (goalId: string, amount: number) => {
+export const addPlaylist = (playlist: Playlist) => {
   const state = loadDB();
-  const goal = state.goals.find(g => g.id === goalId);
-  if (goal && !goal.completed) {
-    goal.progress = Math.min(goal.progress + amount, goal.total);
-    if (goal.progress >= goal.total) {
-      goal.completed = true;
-      feedback.playSuccess();
-      const xpAwarded = goal.type === 'Oro' ? 2000 : goal.type === 'Plata' ? 500 : 100;
-      state.user.points += xpAwarded;
-      let badgeToAward: Badge | undefined;
-      if (state.user.badges.length === 0) {
-        badgeToAward = BADGES.find(b => b.id === 'b1');
-      } else if (goal.type === 'Plata') {
-        badgeToAward = BADGES.find(b => b.id === 'b4');
-      } else if (goal.type === 'Oro') {
-        badgeToAward = BADGES.find(b => b.id === 'b5');
-      }
-      if (badgeToAward && !state.user.badges.some(b => b.id === badgeToAward?.id)) {
-        state.user.badges.push({ ...badgeToAward, dateEarned: new Date().toLocaleDateString() });
-        state.notifications.unshift({ id: Date.now().toString(), title: '¡Nueva Insignia!', message: `Has desbloqueado: ${badgeToAward.name}`, time: 'Ahora', read: false, type: 'award' });
-      }
-      state.notifications.unshift({ id: (Date.now() + 1).toString(), title: 'Meta Completada', message: `¡Felicidades! Ganaste ${xpAwarded} XP por completar "${goal.title}".`, time: 'Ahora', read: false, type: 'award' });
-    }
+  state.playlists.unshift(playlist);
+  saveDB(state);
+};
+
+export const likeReflection = async (id: string) => {
+  const state = loadDB();
+  const reflection = state.reflections.find((r: any) => r.id === id);
+  if (reflection) {
+    reflection.likes += 1;
     saveDB(state);
+  }
+  
+  if (auth.currentUser) {
+    const refDoc = doc(db, "reflections", id);
+    const docSnap = await getDoc(refDoc);
+    if (docSnap.exists()) {
+      await updateDoc(refDoc, { likes: docSnap.data().likes + 1 });
+    }
   }
 };
 
-export const addPlaylist = (playlist: Playlist) => {
+export const getCachedChapter = (book: string, chapter: number) => {
   const state = loadDB();
-  state.playlists = [playlist, ...state.playlists];
+  return state.bibleCache?.find((c: any) => c.book === book && c.chapter === chapter)?.verses;
+};
+
+export const saveChapterToCache = (book: string, chapter: number, verses: BibleVerse[]) => {
+  const state = loadDB();
+  if (!state.bibleCache) state.bibleCache = [];
+  const index = state.bibleCache.findIndex((c: any) => c.book === book && c.chapter === chapter);
+  if (index >= 0) {
+    state.bibleCache[index].verses = verses;
+  } else {
+    state.bibleCache.push({ book, chapter, verses });
+  }
   saveDB(state);
 };
 
-export const markNotificationsRead = () => {
+export const isChapterCached = (book: string, chapter: number) => {
   const state = loadDB();
-  state.notifications = state.notifications.map(n => ({ ...n, read: true }));
-  saveDB(state);
+  return state.bibleCache?.some((c: any) => c.book === book && c.chapter === chapter);
+};
+
+export const fetchGlobalLeaderboard = async () => {
+  try {
+    const q = query(collection(db, "users"), orderBy("points", "desc"), limit(10));
+    const querySnapshot = await getDocs(q);
+    const leaderboard: any[] = [];
+    querySnapshot.forEach((doc) => {
+      leaderboard.push({ id: doc.id, ...doc.data() });
+    });
+    return leaderboard;
+  } catch (e) {
+    console.error("Error fetching leaderboard:", e);
+    return [];
+  }
+};
+
+export const addReflection = async (reflectionData: Partial<Reflection>) => {
+  if (!auth.currentUser) return;
+
+  const newRef = {
+    userId: auth.currentUser.uid,
+    userName: reflectionData.userName,
+    userPhoto: reflectionData.userPhoto,
+    text: reflectionData.text,
+    verseReference: reflectionData.verseReference,
+    createdAt: serverTimestamp(),
+    likes: 0
+  };
+
+  await addDoc(collection(db, "reflections"), newRef);
+  await addFEPoints(50, 'Compartir reflexión');
+};
+
+export const syncUserToFirebase = async (user: User) => {
+  if (!auth.currentUser) return;
+  const userRef = doc(db, "users", auth.currentUser.uid);
+  await setDoc(userRef, {
+    name: user.name,
+    email: user.email,
+    photoUrl: user.photoUrl,
+    points: user.points,
+    level: Math.floor(Math.sqrt(user.points / 100)),
+    registered: true,
+    lastLoginDate: user.lastLoginDate,
+    streak: user.streak,
+    xpHistory: user.xpHistory || []
+  }, { merge: true });
 };
