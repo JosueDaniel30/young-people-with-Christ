@@ -1,45 +1,49 @@
 
 {
-  "id": "com.ignite.youth.app.v1",
-  "name": "Jóvenes con Cristo - Ignite",
+  "id": "com.ignite.youth.church.v2.3",
+  "name": "Ignite Youth Church",
   "short_name": "Ignite",
-  "description": "Comunidad vibrante para jóvenes con Biblia RVR1960, metas y mentoría IA.",
+  "description": "Plataforma espiritual para la nueva generación con Biblia RVR1960.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#1A3A63",
-  "theme_color": "#1A3A63",
+  "background_color": "#7c3aed",
+  "theme_color": "#7c3aed",
   "icons": [
     {
-      "src": "https://api.dicebear.com/7.x/shapes/png?seed=Ignite&backgroundColor=1a3a63&width=192&height=192",
+      "src": "https://api.dicebear.com/7.x/shapes/png?seed=Ignite&backgroundColor=7c3aed&width=192&height=192&v=2",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "https://api.dicebear.com/7.x/shapes/png?seed=Ignite&backgroundColor=1a3a63&width=192&height=192",
+      "src": "https://api.dicebear.com/7.x/shapes/png?seed=Ignite&backgroundColor=7c3aed&width=192&height=192&v=2",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "https://api.dicebear.com/7.x/shapes/png?seed=Ignite&backgroundColor=1a3a63&width=512&height=512",
+      "src": "https://api.dicebear.com/7.x/shapes/png?seed=Ignite&backgroundColor=7c3aed&width=512&height=512&v=2",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "https://api.dicebear.com/7.x/shapes/png?seed=Ignite&backgroundColor=1a3a63&width=512&height=512",
+      "src": "https://api.dicebear.com/7.x/shapes/png?seed=Ignite&backgroundColor=7c3aed&width=512&height=512&v=2",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
     }
   ],
-  "categories": [
-    "lifestyle",
-    "education",
-    "social"
-  ],
-  "prefer_related_applications": false
+  "categories": ["lifestyle", "social"],
+  "screenshots": [
+    {
+      "src": "https://images.unsplash.com/photo-1507692049790-de58290a4334?w=1080&q=80",
+      "sizes": "1080x1920",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "Ignite Mobile"
+    }
+  ]
 }

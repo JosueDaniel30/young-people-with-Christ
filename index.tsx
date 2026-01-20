@@ -3,16 +3,20 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.tsx';
 
-// Registro del Service Worker con manejo de errores robusto
+// Registro del Service Worker mejorado para evitar problemas de origen cruzado
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    // Usamos una ruta relativa directa como string para evitar el error 'Failed to construct URL'
-    navigator.serviceWorker.register('./sw.js')
+    // Usamos el nombre del archivo directamente para que el navegador resuelva la ruta relativa al documento
+    const swPath = 'sw.js';
+    navigator.serviceWorker.register(swPath)
       .then((registration) => {
-        console.log('Ignite SW registrado:', registration.scope);
+        console.log('Ignite SW activo en:', registration.scope);
       })
       .catch((error) => {
-        console.warn('Registro de SW fallido:', error.message);
+        // Silenciamos el error en el entorno de previsualización de AI Studio si es por origen cruzado
+        if (!error.message.includes('origin')) {
+          console.warn('Error en registro de SW:', error.message);
+        }
       });
   });
 }
