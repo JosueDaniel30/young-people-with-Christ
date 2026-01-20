@@ -9,6 +9,7 @@ import ProfileView from './views/Profile.tsx';
 import AIChatView from './views/AIChat.tsx';
 import AuthView from './views/Auth.tsx';
 import CommunityView from './views/Community.tsx';
+import PrayerRequestsView from './views/PrayerRequests.tsx';
 import { loadDB, handleDailyCheckIn, syncUserToLeaderboard, saveDB, updateUser } from './store/db.ts';
 import { auth, db } from './services/firebaseConfig.ts';
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
@@ -22,10 +23,8 @@ const App: React.FC = () => {
   const [appState, setAppState] = useState(loadDB());
 
   useEffect(() => {
-    // Escuchador de Firebase Auth para persistencia real
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        // Usuario logueado: Sincronizar datos de Firestore a LocalStorage
         const userRef = doc(db, "users", firebaseUser.uid);
         const userSnap = await getDoc(userRef);
         
@@ -63,7 +62,7 @@ const App: React.FC = () => {
 
   const handleLogout = async () => {
     await signOut(auth);
-    localStorage.removeItem('ignite_youth_db'); // Limpiar cache local al salir por seguridad
+    localStorage.removeItem('ignite_youth_db');
     setIsAuthenticated(false);
     setActiveTab('home');
   };
@@ -95,6 +94,7 @@ const App: React.FC = () => {
       {activeTab === 'bible' && <BibleView refreshState={refreshState} />}
       {activeTab === 'chat' && <AIChatView />}
       {activeTab === 'community' && <CommunityView refreshState={refreshState} />}
+      {activeTab === 'prayer' && <PrayerRequestsView refreshState={refreshState} />}
       {activeTab === 'goals' && <GoalsView goals={appState.goals} refreshState={refreshState} />}
       {activeTab === 'playlists' && <PlaylistsView refreshState={refreshState} />}
       {activeTab === 'profile' && <ProfileView user={appState.user} refreshState={refreshState} onLogout={handleLogout} />}

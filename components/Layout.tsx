@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Home, Book, Trophy, User, Music, Sparkles, Bell, X, Moon, Sun, MessageCircle, Zap, CloudOff, Wifi, Info, Database, Cloud } from 'lucide-react';
+import { Home, Book, Trophy, User, Music, Sparkles, Bell, X, Moon, Sun, MessageCircle, Zap, CloudOff, Wifi, Info, Database, Cloud, Waves, MessageSquare } from 'lucide-react';
 import { loadDB, markNotificationsRead, updateUser } from '../store/db.ts';
 import { Notification as NotificationType } from '../types.ts';
 import { feedback } from '../services/audioFeedback.ts';
@@ -71,9 +71,9 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
   const navItems = [
     { id: 'home', icon: Home, label: 'Inicio', color: 'from-violet-600 to-fuchsia-600' },
     { id: 'bible', icon: Book, label: 'Biblia', color: 'from-fuchsia-500 to-rose-500' },
-    { id: 'chat', icon: MessageCircle, label: 'Mentor', color: 'from-cyan-500 to-blue-500' },
-    { id: 'goals', icon: Trophy, label: 'Metas', color: 'from-amber-400 to-orange-500' },
-    { id: 'playlists', icon: Music, label: 'Música', color: 'from-emerald-400 to-cyan-500' },
+    { id: 'community', icon: MessageSquare, label: 'Muro', color: 'from-violet-500 to-indigo-500' },
+    { id: 'prayer', icon: Waves, label: 'Oración', color: 'from-cyan-500 to-blue-500' },
+    { id: 'chat', icon: MessageCircle, label: 'Mentor', color: 'from-indigo-500 to-purple-600' },
     { id: 'profile', icon: User, label: 'Perfil', color: 'from-violet-500 to-indigo-700' },
   ];
 
@@ -82,7 +82,6 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
   return (
     <div className={`min-h-[100dvh] pb-36 transition-colors duration-500 ${isDarkMode ? 'bg-[#030014] text-slate-100' : 'bg-[#f8faff] text-slate-900'}`}>
       
-      {/* Dynamic Toast System */}
       {activeToast && (
         <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[1000] w-[92%] max-w-md animate-in slide-in-from-top duration-500">
           <div className={`p-5 rounded-3xl border shadow-2xl flex items-center gap-4 backdrop-blur-3xl ${isDarkMode ? 'bg-slate-900/90 border-violet-500/40 shadow-violet-900/20' : 'bg-white/90 border-violet-100 shadow-violet-200'}`}>
@@ -100,9 +99,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
         </div>
       )}
 
-      {/* Global Header */}
       <header className={`sticky top-0 z-50 transition-all safe-pt backdrop-blur-xl border-b ${isDarkMode ? 'bg-[#030014]/80 border-white/5' : 'bg-white/80 border-violet-100'}`}>
-        {/* Offline Banner - Improved for High Prominence */}
         {!isOnline && (
           <div className="bg-gradient-to-r from-amber-500 via-rose-500 to-amber-500 bg-[length:200%_auto] animate-[gradient-xy_3s_linear_infinite] text-white py-3 px-6 flex items-center justify-between gap-4 shadow-xl">
             <div className="flex items-center gap-3">
@@ -114,12 +111,6 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
                 <span className="text-[8px] font-bold opacity-80 uppercase tracking-widest mt-1">Sincronización pausada</span>
               </div>
             </div>
-            {hasCache && (
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white text-rose-600 shadow-lg border border-white/30 animate-pulse">
-                <Database className="w-3 h-3" />
-                <span className="text-[8px] font-black uppercase tracking-widest">Modo Altar Activo</span>
-              </div>
-            )}
           </div>
         )}
 
@@ -151,14 +142,12 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
             <button 
               onClick={toggleTheme} 
               className={`p-3 rounded-2xl shadow-lg transition-all active:scale-90 border ${isDarkMode ? 'bg-white/5 border-white/10 text-amber-400' : 'bg-white border-violet-50 text-violet-600 shadow-violet-100'}`}
-              aria-label="Alternar Tema"
             >
               {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </button>
             <button 
               onClick={() => { feedback.playClick(); setShowNotifications(true); }}
               className={`p-3 rounded-2xl relative shadow-lg transition-all active:scale-90 border ${isDarkMode ? 'bg-white/5 border-white/10 text-violet-400' : 'bg-white border-violet-50 text-violet-600 shadow-violet-100'}`}
-              aria-label="Ver Notificaciones"
             >
               <Bell className="w-5 h-5" />
               {state.notifications.filter(n => !n.read).length > 0 && (
@@ -169,13 +158,11 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
         </div>
       </header>
 
-      {/* Main Content Area */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 pt-6">
         {children}
       </main>
 
-      {/* Immersive Navigation Bar */}
-      <nav className={`fixed bottom-8 left-1/2 -translate-x-1/2 w-[92%] max-w-[500px] backdrop-blur-3xl border rounded-[3rem] flex justify-around p-2.5 z-50 shadow-2xl mb-[env(safe-area-inset-bottom)] transition-all ${isDarkMode ? 'bg-black/80 border-white/10 shadow-black/60' : 'bg-white/80 border-violet-100 shadow-violet-200/50'}`}>
+      <nav className={`fixed bottom-8 left-1/2 -translate-x-1/2 w-[95%] max-w-[600px] backdrop-blur-3xl border rounded-[3rem] flex justify-around p-2 z-50 shadow-2xl mb-[env(safe-area-inset-bottom)] transition-all ${isDarkMode ? 'bg-black/80 border-white/10 shadow-black/60' : 'bg-white/80 border-violet-100 shadow-violet-200/50'}`}>
         {navItems.map((item) => (
           <button
             key={item.id}

@@ -1,3 +1,4 @@
+
 export interface User {
   id: string;
   name: string;
@@ -6,7 +7,7 @@ export interface User {
   points: number;
   streak: number;
   level: number;
-  lastLoginDate: string; // ISO String
+  lastLoginDate: string; 
   badges: Badge[];
   theme: 'light' | 'dark';
   favorites: BibleVerse[];
@@ -16,7 +17,19 @@ export interface User {
     goals: boolean;
     community: boolean;
   };
-  xpHistory?: { date: string; points: number }[]; // Historial para el gráfico
+  xpHistory?: { date: string; points: number }[]; 
+}
+
+export interface PrayerRequest {
+  id: string;
+  userId: string;
+  userName: string;
+  userPhoto: string;
+  request: string;
+  category: 'Salud' | 'Familia' | 'Estudios' | 'Provisión' | 'Guía' | 'Otros';
+  createdAt: any;
+  prayersCount: number;
+  prayers: string[]; // IDs de usuarios que están orando
 }
 
 export interface Reflection {
@@ -67,7 +80,7 @@ export interface BibleVerse {
   chapter: number;
   verse: number;
   text: string;
-  title?: string; // Título de la historia o sección (opcional)
+  title?: string;
 }
 
 export interface CachedChapter {
