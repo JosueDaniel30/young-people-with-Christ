@@ -1,10 +1,10 @@
 
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getAuth } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { getFirestore } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { initializeApp } from "firebase/app";
+import { getAuth } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
 
 /**
- * Configuración oficial del proyecto "Ignite Youth" vinculada a Firebase Console.
+ * Configuración oficial del proyecto "Ignite Youth".
  */
 const firebaseConfig = {
   apiKey: "AIzaSyDQmNMSbts42YaM7QkDPbhkc9alHzMMYSM",

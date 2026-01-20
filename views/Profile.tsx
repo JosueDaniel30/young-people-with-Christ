@@ -1,9 +1,9 @@
 
 import React, { useState, useRef } from 'react';
-import { Camera, Edit2, LogOut, Award, Flame, Moon, Sun, Medal, Crown, BookOpen, Music, Heart, Volume2, Share2, Trash2, X, Star, Zap, Shield, Trophy, ChevronRight, Bookmark, Sparkles, AlertTriangle, Bell, BellOff, ToggleLeft, ToggleRight, Loader2 } from 'lucide-react';
-import { User, Badge, BibleVerse } from '../types';
+import { Camera, Edit2, LogOut, Award, Flame, Moon, Sun, Medal, Crown, BookOpen, Music, Heart, Volume2, Share2, Trash2, X, Star, Zap, Shield, Trophy, ChevronRight, Bookmark, Sparkles, AlertTriangle, Bell, BellOff, ToggleLeft, ToggleRight, Loader2, Globe, EyeOff } from 'lucide-react';
+import { User, Badge, BibleVerse, Playlist } from '../types';
 import { BADGES } from '../constants';
-import { updateUser, loadDB, toggleFavorite, addNotification } from '../store/db';
+import { updateUser, loadDB, toggleFavorite, addNotification, togglePlaylistShared } from '../store/db';
 import { playAudio } from '../services/geminiService';
 import { feedback } from '../services/audioFeedback';
 import { shareContent } from '../services/shareService';
@@ -23,6 +23,9 @@ const Profile: React.FC<{ user: User, refreshState: () => void, onLogout: () => 
   const nextLevelPoints = Math.pow(user.level + 1, 2) * 100;
   const currentLevelStart = Math.pow(user.level, 2) * 100;
   const progress = ((user.points - currentLevelStart) / (nextLevelPoints - currentLevelStart)) * 100;
+
+  // Filtrar playlists del usuario actual
+  const userPlaylists = (state.playlists || []).filter((p: Playlist) => p.userId === user.id);
 
   const handleSave = () => {
     feedback.playClick();
@@ -106,7 +109,6 @@ const Profile: React.FC<{ user: User, refreshState: () => void, onLogout: () => 
   return (
     <div className="p-4 sm:p-10 space-y-12 animate-in slide-in-from-bottom duration-700 max-w-4xl mx-auto pb-32">
       
-      {/* Hidden File Input for Camera/Gallery */}
       <input 
         type="file" 
         ref={fileInputRef} 
@@ -116,7 +118,6 @@ const Profile: React.FC<{ user: User, refreshState: () => void, onLogout: () => 
         className="hidden" 
       />
 
-      {/* Dynamic Profile Hero */}
       <div className={`relative p-8 sm:p-16 rounded-[4rem] border-2 overflow-hidden ${isDarkMode ? 'bg-slate-900 border-white/5' : 'bg-white border-indigo-50 shadow-2xl'}`}>
         <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-500/10 blur-[100px] -mr-32 -mt-32" />
         
@@ -189,6 +190,53 @@ const Profile: React.FC<{ user: User, refreshState: () => void, onLogout: () => 
           </div>
         </div>
       </div>
+
+      {/* NUEVA SECCIÓN: Mis Mezclas */}
+      <section className="space-y-6">
+        <div className="flex items-center gap-4 px-2">
+          <div className="p-3 bg-fuchsia-600 rounded-2xl text-white shadow-lg">
+            <Music className="w-6 h-6" />
+          </div>
+          <h3 className="text-2xl font-black uppercase tracking-tighter font-heading">Mis Mezclas</h3>
+        </div>
+
+        {userPlaylists.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            {userPlaylists.map((pl: Playlist) => (
+              <div key={pl.id} className={`p-6 rounded-[2.5rem] border-2 transition-all flex items-center gap-5 ${isDarkMode ? 'bg-slate-900 border-white/5' : 'bg-white border-indigo-50 shadow-sm'}`}>
+                <div className="w-20 h-20 rounded-2xl overflow-hidden shrink-0 shadow-lg">
+                  <img src={pl.cover} className="w-full h-full object-cover" alt="" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-black uppercase tracking-tight truncate text-sm">{pl.title}</h4>
+                  <div className="flex items-center gap-3 mt-1">
+                    <button 
+                      onClick={() => { feedback.playClick(); togglePlaylistShared(pl.id); refreshState(); }}
+                      className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all ${
+                        pl.shared ? 'bg-emerald-500/10 text-emerald-500' : 'bg-slate-100 dark:bg-white/5 text-slate-400'
+                      }`}
+                    >
+                      {pl.shared ? <><Globe className="w-2.5 h-2.5" /> Compartida</> : <><EyeOff className="w-2.5 h-2.5" /> Privada</>}
+                    </button>
+                    {pl.spotifyLink && <span className="w-1.5 h-1.5 rounded-full bg-[#1DB954]" />}
+                    {pl.ytMusicLink && <span className="w-1.5 h-1.5 rounded-full bg-rose-600" />}
+                  </div>
+                </div>
+                <button 
+                  onClick={() => shareContent(pl.title, "Escucha mi playlist de Ignite")} 
+                  className="p-3 rounded-xl bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500 hover:text-white transition-all"
+                >
+                  <Share2 className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="p-12 rounded-[3rem] border-4 border-dashed border-slate-200 dark:border-white/5 text-center">
+            <p className="text-xs font-black uppercase tracking-widest opacity-30 italic">No has creado ninguna mezcla aún.</p>
+          </div>
+        )}
+      </section>
 
       {/* Notificaciones & Preferencias */}
       <section className="space-y-6">
@@ -332,7 +380,6 @@ const Profile: React.FC<{ user: User, refreshState: () => void, onLogout: () => 
         </div>
       </section>
 
-      {/* Modals remain the same but use the new updated theme colors */}
       {selectedBadge && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-black/90 backdrop-blur-3xl animate-in fade-in">
           <div className="w-full max-w-md rounded-[4rem] overflow-hidden shadow-2xl border-2 border-white/20 glass animate-in zoom-in-95">

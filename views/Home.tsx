@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { Play, Sparkles, GraduationCap, ChevronRight, CheckCircle, Flame, Star, Zap, Volume2, ArrowRight, Loader2, RefreshCw, Quote, Trophy, Users, Cloud } from 'lucide-react';
-import { BibleVerse, User } from '../types';
+import { Play, Sparkles, GraduationCap, ChevronRight, CheckCircle, Flame, Star, Zap, Volume2, ArrowRight, Loader2, RefreshCw, Quote, Trophy, Users, Cloud, Music, Headphones, Disc, Plus } from 'lucide-react';
+import { BibleVerse, User, Playlist } from '../types';
 import { analyzeVerse, playAudio, getRandomVerse } from '../services/geminiService';
 import { loadDB, addFEPoints, fetchGlobalLeaderboard } from '../store/db';
 import { feedback } from '../services/audioFeedback';
@@ -28,6 +28,8 @@ const Home: React.FC<{ user: User, refreshState: () => void, setActiveTab: (t: s
   const dailyIndex = new Date().getDate() % HERO_IMAGES.length;
   const [heroImageIndex, setHeroImageIndex] = useState(dailyIndex);
 
+  const sharedPlaylists = (state.playlists || []).filter((p: Playlist) => p.shared);
+
   const STUDY_IMAGES = [
     "https://images.unsplash.com/photo-1504052434569-70ad58165627?w=800&q=80",
     "https://images.unsplash.com/photo-1438232992991-995b7058bbb3?w=800&q=80",
@@ -36,7 +38,6 @@ const Home: React.FC<{ user: User, refreshState: () => void, setActiveTab: (t: s
 
   useEffect(() => {
     const loadData = async () => {
-      // Cargar versículo
       const today = new Date().toISOString().split('T')[0];
       const cached = localStorage.getItem('ignite_daily_verse');
       const cachedDate = localStorage.getItem('ignite_daily_verse_date');
@@ -54,7 +55,6 @@ const Home: React.FC<{ user: User, refreshState: () => void, setActiveTab: (t: s
         finally { setIsLoadingVerse(false); }
       }
 
-      // Cargar Ranking del Backend
       try {
         const board = await fetchGlobalLeaderboard();
         setLeaderboard(board);
@@ -63,7 +63,7 @@ const Home: React.FC<{ user: User, refreshState: () => void, setActiveTab: (t: s
     };
 
     loadData();
-  }, [user.points]); // Refrescar si cambian los puntos
+  }, [user.points]);
 
   const nextLevelPoints = Math.pow(user.level + 1, 2) * 100;
   const currentLevelStart = Math.pow(user.level, 2) * 100;
@@ -87,15 +87,13 @@ const Home: React.FC<{ user: User, refreshState: () => void, setActiveTab: (t: s
   };
 
   return (
-    <div className="max-w-7xl mx-auto p-3 sm:p-10 space-y-10 sm:y-16 animate-in fade-in duration-1000">
+    <div className="max-w-7xl mx-auto p-3 sm:p-10 space-y-12 sm:y-16 animate-in fade-in duration-1000 pb-40">
       
-      {/* Sincronización Status */}
       <div className="flex items-center justify-end gap-2 px-2">
          <Cloud className={`w-3 h-3 ${isDarkMode ? 'text-violet-400' : 'text-violet-500'} animate-pulse`} />
          <span className="text-[8px] font-black uppercase tracking-widest opacity-40">Cloud Synced</span>
       </div>
 
-      {/* Hero Section */}
       <section className="relative min-h-[550px] sm:min-h-[700px] rounded-[2.5rem] overflow-hidden group shadow-2xl flex flex-col">
         <img src={HERO_IMAGES[heroImageIndex]} className="absolute inset-0 w-full h-full object-cover transition-transform duration-[3000ms] group-hover:scale-105" alt="Daily" />
         <div className={`absolute inset-0 transition-opacity duration-700 ${isDarkMode ? 'bg-black/60' : 'bg-black/40'}`} />
@@ -132,9 +130,70 @@ const Home: React.FC<{ user: User, refreshState: () => void, setActiveTab: (t: s
         <button onClick={cycleHeroImage} className="absolute bottom-6 right-6 p-3 bg-white/5 backdrop-blur-xl border border-white/10 rounded-full text-white/30 hover:text-white transition-all z-20 active:scale-90"><RefreshCw className="w-4 h-4" /></button>
       </section>
 
-      {/* Stats & Global Leaderboard */}
+      {/* SECCIÓN: Vibras de la Comunidad (Playlists Compartidas) */}
+      <section className="space-y-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between px-2 gap-4">
+          <div className="flex items-center gap-4">
+            <div className="p-4 bg-gradient-to-br from-fuchsia-600 to-rose-600 rounded-2xl text-white shadow-xl">
+              <Headphones className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-2xl font-black uppercase tracking-tighter font-heading">Vibras del Espíritu</h3>
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Curadas por la comunidad</p>
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <button 
+              onClick={() => { feedback.playClick(); setActiveTab('playlists'); }} 
+              className="flex-1 sm:flex-none px-6 py-3 rounded-xl bg-violet-600/10 text-violet-500 font-black uppercase text-[9px] tracking-widest hover:bg-violet-600 hover:text-white transition-all border border-violet-500/20 flex items-center justify-center gap-2"
+            >
+              <Music className="w-3.5 h-3.5" /> Explorar
+            </button>
+            <button 
+              onClick={() => { feedback.playClick(); setActiveTab('playlists'); }} 
+              className="px-6 py-3 rounded-xl bg-gradient-to-r from-fuchsia-600 to-rose-600 text-white font-black uppercase text-[9px] tracking-widest hover:brightness-110 shadow-lg flex items-center justify-center gap-2"
+            >
+              <Plus className="w-3.5 h-3.5" /> Nueva
+            </button>
+          </div>
+        </div>
+        
+        {sharedPlaylists.length > 0 ? (
+          <div className="flex gap-8 overflow-x-auto pb-8 scrollbar-hide px-2">
+            {sharedPlaylists.map((pl: Playlist) => (
+              <div 
+                key={pl.id} 
+                onClick={() => { feedback.playClick(); setActiveTab('playlists'); }}
+                className={`shrink-0 w-72 rounded-[3rem] border-2 overflow-hidden transition-all hover:scale-[1.03] active:scale-95 cursor-pointer relative group ${isDarkMode ? 'bg-slate-900 border-white/5 shadow-2xl shadow-black/40' : 'bg-white border-violet-50 shadow-xl shadow-violet-100/30'}`}
+              >
+                <div className="h-44 relative">
+                  <img src={pl.cover} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" alt="" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                     <Play className="w-12 h-12 text-white fill-current" />
+                  </div>
+                  <div className="absolute bottom-4 left-6 flex gap-2">
+                    {pl.spotifyLink && <div className="w-7 h-7 rounded-lg bg-[#1DB954] flex items-center justify-center border border-white/20"><Music className="w-3.5 h-3.5 text-white" /></div>}
+                    {pl.ytMusicLink && <div className="w-7 h-7 rounded-lg bg-rose-600 flex items-center justify-center border border-white/20"><Disc className="w-3.5 h-3.5 text-white" /></div>}
+                  </div>
+                </div>
+                <div className="p-6 space-y-2">
+                  <h4 className="text-lg font-black uppercase tracking-tight truncate group-hover:text-violet-500 transition-colors">{pl.title}</h4>
+                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest truncate">Curada por {pl.creator}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className={`p-16 rounded-[3rem] border-4 border-dashed text-center space-y-4 ${isDarkMode ? 'border-white/5' : 'border-slate-100'}`}>
+             <Music className="w-12 h-12 text-slate-300 mx-auto animate-bounce" />
+             <p className="text-sm font-black uppercase tracking-widest opacity-30">Aún no hay mezclas compartidas. ¡Sé el primero!</p>
+          </div>
+        )}
+      </section>
+
+      {/* Resto de la vista Home... */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* User Stats */}
         <div className={`lg:col-span-2 p-8 sm:p-12 rounded-[2.5rem] border transition-all ${isDarkMode ? 'bg-white/5 border-white/5' : 'bg-white border-violet-50 shadow-xl'}`}>
            <div className="flex justify-between items-start mb-8">
              <h3 className="text-3xl font-black font-heading tracking-tighter">Nivel <span className="text-violet-500">{user.level}</span></h3>
@@ -152,7 +211,6 @@ const Home: React.FC<{ user: User, refreshState: () => void, setActiveTab: (t: s
            <p className="text-[9px] font-black uppercase tracking-[0.4em] mt-4 opacity-40">Progresión del Espíritu</p>
         </div>
 
-        {/* Real Backend Feature: Global Leaderboard */}
         <div className={`p-8 rounded-[2.5rem] border flex flex-col ${isDarkMode ? 'bg-slate-900 border-white/5' : 'bg-white border-violet-50 shadow-xl'}`}>
           <div className="flex items-center gap-3 mb-6">
             <Trophy className="w-5 h-5 text-yellow-500" />
@@ -180,7 +238,6 @@ const Home: React.FC<{ user: User, refreshState: () => void, setActiveTab: (t: s
         </div>
       </div>
 
-      {/* Academy Grid */}
       <section className="space-y-8">
         <div className="flex items-center gap-4">
           <div className="p-3 bg-indigo-600 rounded-2xl text-white shadow-lg"><GraduationCap className="w-6 h-6" /></div>

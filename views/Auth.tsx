@@ -1,14 +1,14 @@
 
 import React, { useState } from 'react';
-import { Sparkles, AlertCircle, Loader2, Mail, Lock, User, Zap, ArrowRight } from 'lucide-react';
+import { Sparkles, AlertCircle, Loader2, Mail, Lock, User, Zap, ArrowRight, ShieldAlert } from 'lucide-react';
 import { feedback } from '../services/audioFeedback.ts';
 import { auth } from '../services/firebaseConfig.ts';
 import { 
   createUserWithEmailAndPassword, 
   signInWithEmailAndPassword,
   updateProfile 
-} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { syncUserToFirebase, loadDB } from '../store/db.ts';
+} from "firebase/auth";
+import { syncUserToFirebase, loadDB, saveDB } from '../store/db.ts';
 
 export default function Auth({ onLogin }: { onLogin: () => void }) {
   const [isRegister, setIsRegister] = useState(false);
@@ -21,6 +21,7 @@ export default function Auth({ onLogin }: { onLogin: () => void }) {
   const handleAuthAction = async () => {
     feedback.playClick();
     if (isRegister && !name.trim()) { setError('Dinos tu nombre, guerrero'); return; }
+    if (!email || !pass) { setError('Faltan credenciales'); return; }
     
     setError('');
     setIsLoading(true);
@@ -29,7 +30,6 @@ export default function Auth({ onLogin }: { onLogin: () => void }) {
       if (isRegister) {
         const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
         await updateProfile(userCredential.user, { displayName: name });
-        // Sincronizar perfil inicial
         const state = loadDB();
         await syncUserToFirebase({ ...state.user, name, email });
       } else {
@@ -39,10 +39,21 @@ export default function Auth({ onLogin }: { onLogin: () => void }) {
       feedback.playSuccess();
       onLogin();
     } catch (err: any) {
-      setError(err.message || 'Error de autenticación');
+      console.error(err);
+      setError('Error al conectar con el Altar. Intenta Modo Invitado.');
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleGuestLogin = () => {
+    feedback.playSuccess();
+    // Simular un login local exitoso
+    const state = loadDB();
+    state.user.id = 'guest_' + Date.now();
+    state.user.name = 'Guerrero Invitado';
+    saveDB(state);
+    onLogin();
   };
 
   return (
@@ -66,8 +77,8 @@ export default function Auth({ onLogin }: { onLogin: () => void }) {
                 type="text" 
                 value={name} 
                 onChange={e => setName(e.target.value)} 
-                placeholder="Nombre" 
-                className="w-full bg-black/40 border border-white/5 rounded-3xl px-8 py-5 text-white focus:border-violet-500 outline-none" 
+                placeholder="Tu Nombre" 
+                className="w-full bg-black/40 border border-white/5 rounded-3xl px-8 py-5 text-white focus:border-violet-500 outline-none transition-all" 
               />
             )}
             <input 
@@ -75,29 +86,50 @@ export default function Auth({ onLogin }: { onLogin: () => void }) {
               value={email} 
               onChange={e => setEmail(e.target.value)} 
               placeholder="Email" 
-              className="w-full bg-black/40 border border-white/5 rounded-3xl px-8 py-5 text-white focus:border-violet-500 outline-none" 
+              className="w-full bg-black/40 border border-white/5 rounded-3xl px-8 py-5 text-white focus:border-violet-500 outline-none transition-all" 
             />
             <input 
               type="password" 
               value={pass} 
               onChange={e => setPass(e.target.value)} 
               placeholder="Password" 
-              className="w-full bg-black/40 border border-white/5 rounded-3xl px-8 py-5 text-white focus:border-violet-500 outline-none" 
+              className="w-full bg-black/40 border border-white/5 rounded-3xl px-8 py-5 text-white focus:border-violet-500 outline-none transition-all" 
             />
-            {error && <p className="text-rose-400 text-xs font-bold text-center">{error}</p>}
+            {error && (
+              <div className="flex items-center gap-2 p-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl text-rose-400 text-xs font-bold animate-shake">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-4">
+            <button 
+              onClick={handleAuthAction} 
+              disabled={isLoading} 
+              className="w-full bg-gradient-to-r from-violet-600 to-rose-600 text-white font-black py-6 rounded-3xl flex items-center justify-center gap-4 active:scale-95 transition-all shadow-xl shadow-violet-500/20"
+            >
+              {isLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : (isRegister ? 'Registrarse' : 'Entrar')}
+            </button>
+
+            <div className="flex items-center gap-4 py-2">
+              <div className="h-px flex-1 bg-white/10" />
+              <span className="text-[9px] font-black text-slate-500 uppercase">o también</span>
+              <div className="h-px flex-1 bg-white/10" />
+            </div>
+
+            <button 
+              onClick={handleGuestLogin} 
+              className="w-full bg-white/5 hover:bg-white/10 text-white font-black py-5 rounded-3xl flex items-center justify-center gap-3 active:scale-95 transition-all border border-white/10"
+            >
+              <User className="w-4 h-4" />
+              <span className="text-[10px] uppercase tracking-widest">Entrar como Invitado</span>
+            </button>
           </div>
 
           <button 
-            onClick={handleAuthAction} 
-            disabled={isLoading} 
-            className="w-full bg-gradient-to-r from-violet-600 to-rose-600 text-white font-black py-6 rounded-3xl flex items-center justify-center gap-4 active:scale-95 transition-all"
-          >
-            {isLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : (isRegister ? 'Registrarse' : 'Entrar')}
-          </button>
-
-          <button 
             onClick={() => setIsRegister(!isRegister)} 
-            className="w-full text-slate-500 text-[9px] font-black uppercase tracking-[0.4em]"
+            className="w-full text-slate-500 text-[9px] font-black uppercase tracking-[0.4em] hover:text-white transition-colors"
           >
             {isRegister ? '¿Ya tienes cuenta? Entra' : '¿Eres nuevo? Regístrate'}
           </button>

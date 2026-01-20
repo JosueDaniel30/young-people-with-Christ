@@ -76,10 +76,14 @@ export const INITIAL_GOALS: Goal[] = [
 export const PLAYLISTS: Playlist[] = [
   {
     id: 'p1',
+    // Fix: Added missing userId property to satisfy the Playlist interface requirements
+    userId: '1',
     title: 'Adoración y Alabanza',
     creator: 'Ministerio Juvenil',
     spotifyLink: 'https://open.spotify.com',
     likes: 120,
-    cover: 'https://images.unsplash.com/photo-1514525253361-b874866075b5?w=400'
+    cover: 'https://images.unsplash.com/photo-1514525253361-b874866075b5?w=400',
+    // Fix: Added missing shared property to satisfy the Playlist interface requirements
+    shared: true
   }
 ];

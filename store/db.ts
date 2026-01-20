@@ -38,6 +38,15 @@ export const updateUser = (updater: (u: User) => User) => {
   syncUserToFirebase(state.user);
 };
 
+export const togglePlaylistShared = (id: string) => {
+  const state = loadDB();
+  const playlist = state.playlists.find((p: Playlist) => p.id === id);
+  if (playlist) {
+    playlist.shared = !playlist.shared;
+    saveDB(state);
+  }
+};
+
 export const markNotificationsRead = () => {
   const state = loadDB();
   state.notifications = state.notifications.map((n: any) => ({ ...n, read: true }));

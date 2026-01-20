@@ -100,10 +100,12 @@ export interface Study {
 
 export interface Playlist {
   id: string;
+  userId: string; // ID del creador
   title: string;
   creator: string;
   spotifyLink?: string;
   ytMusicLink?: string;
   likes: number;
   cover?: string;
+  shared: boolean; // Si aparece en el muro público
 }
