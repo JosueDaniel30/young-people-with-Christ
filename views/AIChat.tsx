@@ -1,7 +1,7 @@
 
-import React, { useState, useEffect, useRef } from 'react';
 import { Send, Sparkles, User, Trash2, Volume2, Share2, Copy, Check, X, AlertTriangle, Loader2, Zap, Brain, Stars, Heart, BookOpen, Flame, Waves, MessageCircle } from 'lucide-react';
-import { createBibleChat, playAudio } from '../services/geminiService';
+import React, { useState, useEffect, useRef } from 'react';
+import { createBibleChat, playAudio, getRemainingQuota } from '../services/geminiService';
 import { loadDB, addNotification } from '../store/db';
 import { feedback } from '../services/audioFeedback';
 import { shareContent } from '../services/shareService';
@@ -68,7 +68,7 @@ const MessageItem: React.FC<{
                   <button onClick={() => { feedback.playClick(); onPlay(message.text); }} className="p-2 hover:bg-amber-500/10 rounded-xl text-amber-600 dark:text-amber-400 transition-all">
                     <Volume2 className="w-4 h-4" />
                   </button>
-                  <button onClick={handleCopy} className="p-2 hover:bg-amber-500/10 rounded-xl text-amber-600 dark:text-amber-400 transition-all">
+                  <button handleCopy={handleCopy} className="p-2 hover:bg-amber-500/10 rounded-xl text-amber-600 dark:text-amber-400 transition-all">
                     {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
                   </button>
                   <button onClick={() => shareContent("Consejo Paternal", message.text)} className="p-2 hover:bg-amber-500/10 rounded-xl text-amber-600 dark:text-amber-400 transition-all">
@@ -92,16 +92,15 @@ const AIChat: React.FC = () => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [quota, setQuota] = useState(getRemainingQuota());
   const chatRef = useRef<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Inicialización del chat y detección de prompts pendientes
   useEffect(() => {
     const initChat = async () => {
       if (!chatRef.current) {
-        chatRef.current = createBibleChat();
+        chatRef.current = createBibleChat(() => setQuota(getRemainingQuota()));
         
-        // Mensaje inicial por defecto si no hay historial
         if (messages.length === 0) {
           setMessages([
             {
@@ -114,11 +113,9 @@ const AIChat: React.FC = () => {
         }
       }
 
-      // Detectar si venimos de un análisis de versículo
       const pending = localStorage.getItem('ignite_pending_prompt');
       if (pending) {
         localStorage.removeItem('ignite_pending_prompt');
-        // Pequeño delay para que la UI se asiente antes de enviar
         setTimeout(() => handleSend(pending), 500);
       }
     };
@@ -134,6 +131,12 @@ const AIChat: React.FC = () => {
     const textToSend = customText || input.trim();
     if (!textToSend || isLoading) return;
 
+    if (quota <= 0) {
+      addNotification('Límite Alcanzado', 'Has usado tus 10 consultas de hoy. ¡Mañana más sabiduría!', 'info');
+      feedback.playClick();
+      return;
+    }
+
     feedback.playClick();
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -147,7 +150,7 @@ const AIChat: React.FC = () => {
     setIsLoading(true);
 
     try {
-      if (!chatRef.current) chatRef.current = createBibleChat();
+      if (!chatRef.current) chatRef.current = createBibleChat(() => setQuota(getRemainingQuota()));
       const response = await chatRef.current.sendMessage({ message: textToSend });
       const botMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -156,11 +159,12 @@ const AIChat: React.FC = () => {
         timestamp: new Date()
       };
       setMessages(prev => [...prev, botMessage]);
+      setQuota(getRemainingQuota());
       feedback.playNotification();
-    } catch (error) {
+    } catch (error: any) {
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
-        text: "Parece que hay un poco de interferencia en este momento. Pidamos guía y vuelve a intentarlo.",
+        text: error.message || "Parece que hay un poco de interferencia en este momento. Pidamos guía y vuelve a intentarlo.",
         sender: 'bot',
         timestamp: new Date()
       }]);
@@ -172,18 +176,22 @@ const AIChat: React.FC = () => {
   return (
     <div className={`h-[calc(100dvh-180px)] flex flex-col relative transition-all overflow-hidden ${isDarkMode ? 'bg-[#030014]/40' : 'bg-transparent'}`}>
       
-      {/* Header Estilo "Estudio Paternal" */}
       <div className={`sticky top-0 z-30 flex justify-between items-center p-6 border-b backdrop-blur-xl ${isDarkMode ? 'bg-[#0a0502]/60 border-white/5 shadow-2xl' : 'bg-white/80 border-amber-50 shadow-sm'}`}>
         <div className="flex items-center gap-4">
           <div className="relative">
             <div className="w-12 h-12 bg-gradient-to-br from-amber-500 to-orange-700 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-orange-500/20">
                <MessageCircle className="w-7 h-7 fill-current" />
             </div>
-            <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-500 border-2 border-white dark:border-slate-900 rounded-full" />
+            <div className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 border-2 border-white dark:border-slate-900 rounded-full ${quota > 0 ? 'bg-emerald-500' : 'bg-rose-500 animate-pulse'}`} />
           </div>
           <div className="flex flex-col">
             <h2 className={`text-base font-black uppercase tracking-tighter leading-none ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Abba Mentor</h2>
-            <span className="text-[8px] font-black uppercase tracking-[0.2em] text-emerald-500 mt-1">Chat Activo</span>
+            <div className="flex items-center gap-2 mt-1">
+              <span className={`text-[8px] font-black uppercase tracking-[0.2em] ${quota > 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                {quota > 0 ? 'Disponible' : 'Límite diario'}
+              </span>
+              <span className="text-[8px] font-black uppercase tracking-widest text-amber-500/60">• {quota}/10 consultas</span>
+            </div>
           </div>
         </div>
         <button 
@@ -194,7 +202,6 @@ const AIChat: React.FC = () => {
         </button>
       </div>
 
-      {/* Area de Mensajes */}
       <div className="flex-1 overflow-y-auto px-6 py-8 scrollbar-hide">
         {messages.map((m) => (
           <MessageItem key={m.id} message={m} isDarkMode={isDarkMode} onPlay={playAudio} />
@@ -207,12 +214,17 @@ const AIChat: React.FC = () => {
             <span className="text-[10px] font-black uppercase tracking-[0.3em] text-amber-500/60">Buscando en la Palabra...</span>
           </div>
         )}
+        {quota <= 0 && !isLoading && (
+          <div className={`p-8 rounded-[2rem] border-2 border-dashed text-center space-y-4 mb-8 ${isDarkMode ? 'border-amber-500/20 bg-amber-500/5' : 'border-amber-200 bg-amber-50'}`}>
+            <Flame className="w-8 h-8 text-amber-500 mx-auto animate-pulse" />
+            <p className="text-xs font-black uppercase tracking-widest text-amber-700">Has alcanzado tu cuota de hoy, hijo mío. Medita en lo hablado y vuelve mañana con nuevas dudas.</p>
+          </div>
+        )}
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Footer / Input */}
       <div className={`p-6 border-t backdrop-blur-xl ${isDarkMode ? 'bg-[#0a0502]/80 border-white/5' : 'bg-white/90 border-amber-50 shadow-[0_-15px_30px_rgba(251,191,36,0.05)]'}`}>
-        {!isLoading && messages.length < 5 && (
+        {!isLoading && messages.length < 5 && quota > 0 && (
           <div className="flex gap-3 overflow-x-auto pb-4 mb-2 scrollbar-hide">
              {[
                { t: '¿Cómo puedo perdonar?', i: <Heart className="w-3.5 h-3.5" /> },
@@ -234,20 +246,23 @@ const AIChat: React.FC = () => {
         )}
 
         <div className="flex items-center gap-4">
-          <div className={`flex-1 flex items-center px-6 py-2 rounded-[2rem] border-2 transition-all ${isDarkMode ? 'bg-black/40 border-white/5 focus-within:border-amber-500/50' : 'bg-slate-50 border-amber-100 focus-within:border-amber-500 focus-within:bg-white'}`}>
+          <div className={`flex-1 flex items-center px-6 py-2 rounded-[2rem] border-2 transition-all ${
+            quota <= 0 ? 'opacity-40 grayscale' : ''
+          } ${isDarkMode ? 'bg-black/40 border-white/5 focus-within:border-amber-500/50' : 'bg-slate-50 border-amber-100 focus-within:border-amber-500 focus-within:bg-white'}`}>
             <input 
               type="text"
               value={input}
+              disabled={quota <= 0 || isLoading}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-              placeholder="Escribe tu mensaje..."
+              placeholder={quota > 0 ? "Escribe tu mensaje..." : "Vuelve mañana para consultar..."}
               className="flex-1 bg-transparent py-4 text-sm outline-none font-medium placeholder:text-slate-400"
             />
           </div>
 
           <button 
             onClick={() => handleSend()} 
-            disabled={!input.trim() || isLoading} 
+            disabled={!input.trim() || isLoading || quota <= 0} 
             className="w-14 h-14 shrink-0 rounded-[1.8rem] bg-gradient-to-br from-amber-500 to-orange-600 text-white flex items-center justify-center shadow-xl shadow-orange-500/20 active:scale-90 transition-all disabled:opacity-30"
           >
             {isLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : <Send className="w-6 h-6" />}
@@ -255,7 +270,6 @@ const AIChat: React.FC = () => {
         </div>
       </div>
 
-      {/* Modal Confirmación de Borrado */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-6 bg-black/70 backdrop-blur-md animate-in fade-in">
           <div className={`w-full max-w-sm rounded-[3rem] p-10 space-y-8 text-center border shadow-2xl animate-in slide-in-from-bottom-6 ${isDarkMode ? 'bg-[#0a0502] border-amber-500/20 text-white' : 'bg-white border-amber-100'}`}>

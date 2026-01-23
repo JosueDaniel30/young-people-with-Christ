@@ -1,6 +1,10 @@
 {
-  "name": "Ignite Youth - Biblia RVR1960",
-  "description": "Aplicación para jóvenes con Biblia Reina Valera 1960 integrada, buscador inteligente y mentor IA.",
+  "name": "Ignite Youth",
+  "short_name": "Ignite",
+  "description": "Comunidad espiritual y Biblia RVR1960 para la nueva generación.",
+  "theme_color": "#d97706",
+  "background_color": "#111111",
+  "display": "standalone",
   "requestFramePermissions": [
     "camera",
     "microphone"

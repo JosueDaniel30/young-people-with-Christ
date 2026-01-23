@@ -1,46 +1,118 @@
 
 import { GoogleGenAI, Modality, Type } from "@google/genai";
-import { loadDB, getCachedChapter } from "../store/db";
+import { getCachedChapter } from "../store/db";
 import { BibleVerse } from "../types";
 import { fetchFullChapter, searchLocalBible } from "./bibleRepository";
 
+const QUOTA_KEY = 'ignite_ai_daily_quota';
+const MAX_DAILY_QUOTA = 10;
+
+/**
+ * Gestiona el límite de 10 consultas diarias
+ */
+export const getRemainingQuota = () => {
+  const today = new Date().toISOString().split('T')[0];
+  const stored = localStorage.getItem(QUOTA_KEY);
+  
+  if (!stored) return MAX_DAILY_QUOTA;
+  
+  const { date, count } = JSON.parse(stored);
+  if (date !== today) return MAX_DAILY_QUOTA;
+  
+  return Math.max(0, MAX_DAILY_QUOTA - count);
+};
+
+const incrementQuotaUsage = () => {
+  const today = new Date().toISOString().split('T')[0];
+  const stored = localStorage.getItem(QUOTA_KEY);
+  let count = 0;
+  
+  if (stored) {
+    const parsed = JSON.parse(stored);
+    count = parsed.date === today ? parsed.count : 0;
+  }
+  
+  localStorage.setItem(QUOTA_KEY, JSON.stringify({ date: today, count: count + 1 }));
+};
+
+const USE_EXTERNAL_BACKEND = false;
+const BACKEND_URL = "/api/ignite-mentor";
+
 let sharedAudioContext: AudioContext | null = null;
 
-const getAI = () => {
-  return new GoogleGenAI({ apiKey: process.env.API_KEY });
+const requestAI = async (prompt: any, config: any = {}) => {
+  if (getRemainingQuota() <= 0) {
+    throw new Error("Has alcanzado tu límite de 10 consultas por hoy. ¡Medita en lo aprendido y vuelve mañana!");
+  }
+
+  if (USE_EXTERNAL_BACKEND) {
+    const response = await fetch(BACKEND_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt, config })
+    });
+    const data = await response.json();
+    incrementQuotaUsage();
+    return data;
+  }
+
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  try {
+    const modelName = config.model || 'gemini-3-flash-preview';
+    const result = await ai.models.generateContent({
+      model: modelName,
+      contents: prompt,
+      config: {
+        ...config,
+        thinkingConfig: { thinkingBudget: 0 }
+      }
+    });
+    
+    incrementQuotaUsage();
+    return result;
+  } catch (error: any) {
+    console.error("AI Bridge Error:", error);
+    throw new Error(error.message?.includes('429') 
+      ? "Muchos jóvenes consultando. Intenta en un minuto." 
+      : "Error en la conexión espiritual.");
+  }
 };
 
 export const analyzeVerse = async (verse: string) => {
-  const ai = getAI();
-  const response = await ai.models.generateContent({
-    model: 'gemini-3-flash-preview',
-    contents: `Analiza este versículo (RVR1960) para un joven Gen Z. Sé directo, usa lenguaje moderno pero respetuoso. 
+  const prompt = `Analiza este versículo (RVR1960) para un joven Gen Z. Sé directo, usa lenguaje moderno pero respetuoso. 
     Estructura: 
     1. ¿Qué significa esto hoy?
     2. Un "Desafío Ignite" práctico.
-    Versículo: "${verse}"`,
-    config: { 
-      temperature: 0.7,
-      thinkingConfig: { thinkingBudget: 0 } 
-    }
-  });
+    Versículo: "${verse}"`;
+  
+  const response = await requestAI([{ parts: [{ text: prompt }] }]);
   return response.text;
 };
 
+/**
+ * Obtiene un versículo aleatorio sobre TODA la biblia (66 libros).
+ * No consume cuota diaria.
+ */
 export const getRandomVerse = async (): Promise<BibleVerse> => {
   const fallbacks = [
     { book: 'Josué', chapter: 1, verse: 9, text: 'Mira que te mando que te esfuerces y seas valiente; no temas ni desmayes, porque Jehová tu Dios estará contigo en dondequiera que vayas.' },
     { book: 'Salmos', chapter: 23, verse: 1, text: 'Jehová es mi pastor; nada me faltará.' },
-    { book: 'Juan', chapter: 3, verse: 16, text: 'Porque de tal manera amó Dios al mundo, que ha dado a su Hijo unigénito, para que todo aquel que en él cree, no se pierda, mas tenga vida eterna.' }
+    { book: 'Proverbios', chapter: 3, verse: 5, text: 'Fíate de Jehová de todo tu corazón, y no te apoyes en tu propia prudencia.' }
   ];
   
   if (!navigator.onLine) return fallbacks[Math.floor(Math.random() * fallbacks.length)];
   
-  const ai = getAI();
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   try {
+    // Prompt optimizado para aleatoriedad total
+    const prompt = `Selecciona un versículo TOTALMENTE ALEATORIO de cualquiera de los 66 libros de la Biblia Reina Valera 1960. 
+    IMPORTANTE: No te limites a los versículos famosos. Puede ser de los Profetas Menores, Epístolas, Libros Históricos o el Pentateuco. 
+    Hoy es ${new Date().toDateString()}. Sorpréndenos con una joya oculta de la Escritura.
+    Responde UNICAMENTE con este formato JSON: {"book": "Nombre", "chapter": 1, "verse": 1, "text": "Contenido"}`;
+
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: "Genera un versículo RVR1960 inspirador al azar. JSON: book, chapter, verse, text.",
+      contents: prompt,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -57,61 +129,39 @@ export const getRandomVerse = async (): Promise<BibleVerse> => {
     });
     return JSON.parse(response.text?.trim() || '{}') as BibleVerse;
   } catch (error) {
-    return fallbacks[0];
+    console.error("Error obteniendo versículo aleatorio:", error);
+    return fallbacks[Math.floor(Math.random() * fallbacks.length)];
   }
 };
 
 export const searchBible = async (params: any) => {
-  // 1. Caso: Solicitud de Capítulo Completo
-  // Si tenemos libro y capítulo, usamos el repositorio estructurado (que tiene caché integrado)
   if (params.book && params.chapter && !params.verse && !params.query) {
     const results = await fetchFullChapter(params.book, params.chapter);
-    
-    // Si por alguna razón fetchFullChapter devolvió vacío (ej. offline y no cacheado),
-    // intentamos una última búsqueda directa en el caché de la DB por si acaso.
-    if (results.length === 0) {
-      return getCachedChapter(params.book, params.chapter) || [];
-    }
-    return results;
+    return results.length === 0 ? (getCachedChapter(params.book, params.chapter) || []) : results;
   }
 
-  // 2. Caso: Búsqueda Offline
-  if (!navigator.onLine) {
-    const query = typeof params === 'string' ? params : (params.query || '');
-    return searchLocalBible(query);
-  }
-
-  // 3. Caso: Búsqueda Semántica con IA (Online)
-  const ai = getAI();
   const queryText = typeof params === 'string' ? params : params.query;
+  if (!navigator.onLine) return searchLocalBible(queryText);
   
   try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: `Busca versículos RVR1960 relacionados con: "${queryText}". 
-      IMPORTANTE: No resumas ni omitas versículos. Devuelve el texto completo de los resultados más relevantes. 
-      JSON ARRAY [book, chapter, verse, text]`,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.ARRAY,
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              book: { type: Type.STRING },
-              chapter: { type: Type.NUMBER },
-              verse: { type: Type.NUMBER },
-              text: { type: Type.STRING }
-            },
-            required: ["book", "chapter", "verse", "text"]
-          }
+    const response = await requestAI(`Busca versículos RVR1960 relacionados con: "${queryText}". JSON ARRAY [book, chapter, verse, text]`, {
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.ARRAY,
+        items: {
+          type: Type.OBJECT,
+          properties: {
+            book: { type: Type.STRING },
+            chapter: { type: Type.NUMBER },
+            verse: { type: Type.NUMBER },
+            text: { type: Type.STRING }
+          },
+          required: ["book", "chapter", "verse", "text"]
         }
       }
     });
-    const aiResults = JSON.parse(response.text?.trim() || '[]');
-    return aiResults;
+    return JSON.parse(response.text?.trim() || '[]');
   } catch (e) {
-    // Si la IA falla, buscar en lo que el usuario ya ha leído (integrado)
     return searchLocalBible(queryText);
   }
 };
@@ -124,14 +174,14 @@ export const playAudio = async (text: string) => {
     }
     if (sharedAudioContext.state === 'suspended') await sharedAudioContext.resume();
 
-    const ai = getAI();
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash-preview-tts",
       contents: [{ parts: [{ text: text }] }],
       config: {
         responseModalities: [Modality.AUDIO],
         speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } },
-      },
+      }
     });
 
     const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
@@ -147,18 +197,29 @@ export const playAudio = async (text: string) => {
   }
 };
 
-export const createBibleChat = () => {
-  const ai = getAI();
-  return ai.chats.create({
+export const createBibleChat = (onMessageSent?: () => void) => {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const chat = ai.chats.create({
     model: 'gemini-3-flash-preview',
     config: {
-      systemInstruction: `Eres un Mentor Espiritual de Ignite Youth. Usas la Reina Valera 1960. 
-      Tu objetivo es guiar a jóvenes en sus dudas, problemas y crecimiento. 
-      Habla con autoridad pero con mucho amor. Usa emojis de vez en cuando. 
-      Formatea tus respuestas con negritas para versículos y listas para consejos.`,
+      systemInstruction: `Eres un Mentor Espiritual de Ignite Youth. Usas la Biblia RVR1960.
+      Guía a los jóvenes con amor, autoridad bíblica y un lenguaje actual pero respetuoso.`,
       thinkingConfig: { thinkingBudget: 0 }
     },
   });
+
+  const originalSendMessage = chat.sendMessage.bind(chat);
+  chat.sendMessage = async (args: any) => {
+    if (getRemainingQuota() <= 0) {
+      throw new Error("Límite diario alcanzado.");
+    }
+    const response = await originalSendMessage(args);
+    incrementQuotaUsage();
+    if (onMessageSent) onMessageSent();
+    return response;
+  };
+
+  return chat;
 };
 
 function decode(base64: string) {
