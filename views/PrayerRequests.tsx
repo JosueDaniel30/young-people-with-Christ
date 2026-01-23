@@ -1,28 +1,43 @@
 
-import React, { useState } from 'react';
-import { Heart, Send, Plus, Clock, ShieldCheck, Flame, Waves, Users, Zap } from 'lucide-react';
-import { loadDB, addPrayerRequest, joinPrayer } from '../store/db';
+import React, { useState, useEffect } from 'react';
+import { Heart, Send, Plus, Clock, ShieldCheck, Flame, Waves, Users, Zap, Loader2 } from 'lucide-react';
+import { loadDB, addPrayerRequest, joinPrayer, subscribeToPrayers } from '../store/db';
 import { feedback } from '../services/audioFeedback';
+import { PrayerRequest } from '../types';
 
 const PrayerRequests: React.FC<{ refreshState: () => void }> = ({ refreshState }) => {
   const state = loadDB();
   const isDarkMode = state.user.theme === 'dark';
-  const requests = state.prayerRequests || [];
+  const [requests, setRequests] = useState<PrayerRequest[]>(state.prayerRequests || []);
   const [showForm, setShowForm] = useState(false);
   const [newRequest, setNewRequest] = useState({ text: '', category: 'Otros' });
+  const [isSyncing, setIsSyncing] = useState(true);
 
   const categories = ['Salud', 'Familia', 'Estudios', 'Provisión', 'Guía', 'Otros'];
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    const unsubscribe = subscribeToPrayers((data) => {
+      setRequests(data);
+      setIsSyncing(false);
+      refreshState();
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newRequest.text.trim()) return;
 
     feedback.playClick();
-    addPrayerRequest(newRequest);
+    await addPrayerRequest(newRequest);
     setNewRequest({ text: '', category: 'Otros' });
     setShowForm(false);
     feedback.playSuccess();
-    refreshState();
+  };
+
+  const handleJoin = (id: string) => {
+    feedback.playClick();
+    joinPrayer(id);
   };
 
   return (
@@ -31,9 +46,10 @@ const PrayerRequests: React.FC<{ refreshState: () => void }> = ({ refreshState }
         <div className="absolute inset-0 bg-gradient-to-br from-amber-600 via-orange-600 to-yellow-600 opacity-90 animate-gradient-xy" />
         <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-8">
           <div className="text-center md:text-left space-y-4">
-             <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/20 backdrop-blur-md rounded-full border border-white/30">
+             <div className="inline-flex items-center gap-3 px-4 py-1.5 bg-white/20 backdrop-blur-md rounded-full border border-white/30">
                <Waves className="w-4 h-4 text-white animate-pulse" />
-               <span className="text-[10px] font-black uppercase tracking-widest text-white">Altar de Clamor</span>
+               <span className="text-[10px] font-black uppercase tracking-widest text-white">Altar de Clamor en Vivo</span>
+               {isSyncing && <Loader2 className="w-3 h-3 text-white animate-spin" />}
              </div>
              <h2 className="text-4xl sm:text-7xl font-black text-white tracking-tighter font-heading leading-tight">
                FUEGO DE <br/><span className="text-transparent bg-clip-text bg-gradient-to-r from-white to-white/40">INTERCESIÓN</span>
@@ -92,7 +108,7 @@ const PrayerRequests: React.FC<{ refreshState: () => void }> = ({ refreshState }
                 <img src={req.userPhoto} className="w-12 h-12 rounded-2xl object-cover border-2 border-amber-500/20" alt="" />
                 <div>
                   <h4 className="font-black text-sm uppercase text-amber-950 dark:text-amber-50">{req.userName}</h4>
-                  <span className="text-[8px] text-amber-700/40 font-black uppercase">{new Date(req.createdAt).toLocaleDateString()}</span>
+                  <span className="text-[8px] text-amber-700/40 font-black uppercase">{new Date(req.createdAt).toLocaleString()}</span>
                 </div>
               </div>
               <p className={`text-xl font-medium italic mb-8 ${isDarkMode ? 'text-amber-100/80' : 'text-amber-900/80'}`}>"{req.request}"</p>
@@ -102,11 +118,11 @@ const PrayerRequests: React.FC<{ refreshState: () => void }> = ({ refreshState }
                   <span className="text-xs font-black text-amber-600">{req.prayersCount} Unidoss</span>
                 </div>
                 <button 
-                  onClick={() => { joinPrayer(req.id); refreshState(); }}
-                  disabled={req.prayers.includes(state.user.id)}
-                  className={`flex items-center gap-3 px-6 py-3 rounded-2xl font-black uppercase text-[9px] transition-all shadow-md active:scale-95 ${req.prayers.includes(state.user.id) ? 'bg-emerald-500 text-white shadow-emerald-500/20' : 'bg-amber-600 text-white shadow-amber-600/20'}`}
+                  onClick={() => handleJoin(req.id)}
+                  disabled={req.prayers?.includes(state.user.id)}
+                  className={`flex items-center gap-3 px-6 py-3 rounded-2xl font-black uppercase text-[9px] transition-all shadow-md active:scale-95 ${req.prayers?.includes(state.user.id) ? 'bg-emerald-500 text-white shadow-emerald-500/20' : 'bg-amber-600 text-white shadow-amber-600/20'}`}
                 >
-                  <Flame className="w-4 h-4" /> {req.prayers.includes(state.user.id) ? 'Estoy Orando' : 'Unirme'}
+                  <Flame className="w-4 h-4" /> {req.prayers?.includes(state.user.id) ? 'Estoy Orando' : 'Unirme'}
                 </button>
               </div>
             </div>

@@ -13,6 +13,8 @@ import PrayerRequestsView from './views/PrayerRequests.tsx';
 import { loadDB, handleDailyCheckIn, saveDB } from './store/db.ts';
 import { startSocialSimulation } from './services/socialSimulator.ts';
 import { Loader2, Zap } from 'lucide-react';
+import { auth } from './services/firebaseConfig';
+import { onAuthStateChanged, signOut } from "firebase/auth";
 
 const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -21,42 +23,43 @@ const App: React.FC = () => {
   const [appState, setAppState] = useState(loadDB());
 
   useEffect(() => {
-    const init = async () => {
-      // Cargamos la base de datos local
-      const state = loadDB();
-      
-      // Si el ID del usuario no es el predeterminado '1', significa que ya se registró
-      if (state.user && state.user.id !== '1' && state.user.id !== '') {
+    // Escuchar cambios en la autenticación de Firebase
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
         setIsAuthenticated(true);
         handleDailyCheckIn();
         startSocialSimulation();
+      } else {
+        setIsAuthenticated(false);
       }
-      
-      // Pequeña pausa estética para el splash screen
-      setTimeout(() => {
-        setIsLoading(false);
-      }, 1500);
-    };
-    init();
+      setIsLoading(false);
+    });
 
     const handleUpdate = () => setAppState(loadDB());
     window.addEventListener('ignite_db_update', handleUpdate);
-    return () => window.removeEventListener('ignite_db_update', handleUpdate);
+    
+    return () => {
+      unsubscribe();
+      window.removeEventListener('ignite_db_update', handleUpdate);
+    };
   }, []);
 
   const refreshState = () => {
     setAppState(loadDB());
   };
 
-  const handleLogout = () => {
-    // Solo eliminamos la sesión activa pero mantenemos la DB para no perder la configuración
-    const state = loadDB();
-    state.user.id = '1'; 
-    saveDB(state);
-    
-    setIsAuthenticated(false);
-    setActiveTab('home');
-    refreshState();
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      const state = loadDB();
+      state.user.id = '1'; 
+      saveDB(state);
+      setIsAuthenticated(false);
+      setActiveTab('home');
+      refreshState();
+    } catch (e) {
+      console.error("Error al salir:", e);
+    }
   };
 
   if (isLoading) {
@@ -67,7 +70,7 @@ const App: React.FC = () => {
           <Zap className="w-24 h-24 text-amber-500 relative z-10 fill-current animate-bounce-slow" />
         </div>
         <div className="space-y-4 text-center">
-          <h2 className="text-amber-500 font-black uppercase tracking-[0.8em] text-[10px]">Encendiendo la Llama</h2>
+          <h2 className="text-amber-500 font-black uppercase tracking-[0.8em] text-[10px]">Conectando con el Cielo</h2>
           <div className="flex justify-center">
             <Loader2 className="w-6 h-6 text-amber-700/40 animate-spin" />
           </div>
@@ -77,10 +80,7 @@ const App: React.FC = () => {
   }
 
   if (!isAuthenticated) {
-    return <AuthView onLogin={() => {
-      setIsAuthenticated(true);
-      startSocialSimulation();
-    }} />;
+    return <AuthView onLogin={() => setIsAuthenticated(true)} />;
   }
 
   return (

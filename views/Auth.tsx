@@ -1,8 +1,17 @@
 
 import React, { useState } from 'react';
-import { AlertCircle, Loader2, User, Zap } from 'lucide-react';
+import { AlertCircle, Loader2, User, Zap, Mail, Lock, Ghost } from 'lucide-react';
 import { feedback } from '../services/audioFeedback.ts';
-import { loadDB, saveDB } from '../store/db.ts';
+import { auth, db } from '../services/firebaseConfig';
+import { 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword, 
+  signInAnonymously,
+  updateProfile 
+} from "firebase/auth";
+import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { saveDB, loadDB } from '../store/db';
+import { INITIAL_USER } from '../constants';
 
 export default function Auth({ onLogin }: { onLogin: () => void }) {
   const [isRegister, setIsRegister] = useState(false);
@@ -20,50 +29,85 @@ export default function Auth({ onLogin }: { onLogin: () => void }) {
     setError('');
     setIsLoading(true);
 
-    // Simulación de red
-    await new Promise(resolve => setTimeout(resolve, 1500));
-
     try {
-      const state = loadDB();
-      
-      // Verificamos si es el mismo usuario regresando
-      const isReturningUser = state.user.email === email;
-
-      if (!isReturningUser) {
-        // Solo reiniciamos los datos básicos si es un usuario totalmente nuevo
-        state.user.id = 'usr_' + Date.now();
-        state.user.name = isRegister ? name : email.split('@')[0];
-        state.user.email = email;
+      let userCredential;
+      if (isRegister) {
+        userCredential = await createUserWithEmailAndPassword(auth, email, pass);
+        await updateProfile(userCredential.user, { displayName: name });
+        
+        const newUser = {
+          ...INITIAL_USER,
+          id: userCredential.user.uid,
+          name: name,
+          email: email,
+          lastLoginDate: new Date().toISOString()
+        };
+        await setDoc(doc(db, "users", userCredential.user.uid), newUser);
+      } else {
+        userCredential = await signInWithEmailAndPassword(auth, email, pass);
       }
-      
-      state.user.lastLoginDate = new Date().toISOString();
-      
+
+      const userDoc = await getDoc(doc(db, "users", userCredential.user.uid));
+      const state = loadDB();
+      state.user = userDoc.exists() ? userDoc.data() as any : { ...INITIAL_USER, id: userCredential.user.uid, name: userCredential.user.displayName || 'Joven' };
       saveDB(state);
+
       feedback.playSuccess();
       onLogin();
     } catch (err: any) {
-      setError('La alianza no pudo ser procesada.');
+      console.error(err);
+      if (err.code === 'auth/email-already-in-use') setError('Este correo ya tiene un hogar Ignite.');
+      else if (err.code === 'auth/wrong-password') setError('La llave no coincide con el candado.');
+      else if (err.code === 'auth/user-not-found') setError('No encontramos este correo en el rebaño.');
+      else setError('Hubo un error en la conexión espiritual.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleGuestLogin = () => {
-    feedback.playSuccess();
-    const state = loadDB();
-    
-    if (!state.user.id.startsWith('guest_')) {
-      state.user.id = 'guest_' + Date.now();
-      state.user.name = 'Invitado Sabio';
+  const handleGuestLogin = async () => {
+    feedback.playClick();
+    setError('');
+    setIsLoading(true);
+    try {
+      const userCredential = await signInAnonymously(auth);
+      const uid = userCredential.user.uid;
+      
+      // Verificar si el invitado ya tenía un perfil en Firestore
+      const userDocRef = doc(db, "users", uid);
+      const userDoc = await getDoc(userDocRef);
+      
+      let userData;
+      if (!userDoc.exists()) {
+        // Crear perfil base para el invitado
+        userData = { 
+          ...INITIAL_USER, 
+          id: uid, 
+          name: 'Invitado Sabio',
+          isGuest: true,
+          lastLoginDate: new Date().toISOString()
+        };
+        await setDoc(userDocRef, userData);
+      } else {
+        userData = userDoc.data();
+      }
+
+      const state = loadDB();
+      state.user = userData as any;
+      saveDB(state);
+      
+      feedback.playSuccess();
+      onLogin();
+    } catch (e: any) {
+      console.error("Error en login anónimo:", e);
+      setError('No pudimos abrir la puerta de invitados. Revisa tu conexión.');
+    } finally {
+      setIsLoading(false);
     }
-    
-    saveDB(state);
-    onLogin();
   };
 
   return (
     <div className="min-h-screen bg-[#111111] flex flex-col items-center justify-center p-6 relative overflow-hidden">
-      {/* Fondo con resplandor ámbar */}
       <div className="absolute top-[-20%] left-[-10%] w-[80%] h-[80%] bg-amber-600/20 blur-[180px] rounded-full animate-pulse" />
       <div className="absolute bottom-[-10%] right-[-5%] w-[60%] h-[60%] bg-orange-600/10 blur-[150px] rounded-full" />
       
@@ -85,30 +129,37 @@ export default function Auth({ onLogin }: { onLogin: () => void }) {
           
           <div className="space-y-5">
             {isRegister && (
-              <div className="relative">
+              <div className="relative group">
+                <User className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-white/20 group-focus-within:text-amber-500 transition-colors" />
                 <input 
                   type="text" 
                   value={name} 
                   onChange={e => setName(e.target.value)} 
                   placeholder="Tu nombre o apodo" 
-                  className="w-full bg-black/40 border border-white/5 rounded-3xl px-8 py-5 text-white focus:border-amber-500 outline-none transition-all placeholder:text-white/20" 
+                  className="w-full bg-black/40 border border-white/5 rounded-3xl pl-16 pr-8 py-5 text-white focus:border-amber-500 outline-none transition-all placeholder:text-white/20" 
                 />
               </div>
             )}
-            <input 
-              type="email" 
-              value={email} 
-              onChange={e => setEmail(e.target.value)} 
-              placeholder="Correo electrónico" 
-              className="w-full bg-black/40 border border-white/5 rounded-3xl px-8 py-5 text-white focus:border-amber-500 outline-none transition-all placeholder:text-white/20" 
-            />
-            <input 
-              type="password" 
-              value={pass} 
-              onChange={e => setPass(e.target.value)} 
-              placeholder="Contraseña" 
-              className="w-full bg-black/40 border border-white/5 rounded-3xl px-8 py-5 text-white focus:border-amber-500 outline-none transition-all placeholder:text-white/20" 
-            />
+            <div className="relative group">
+              <Mail className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-white/20 group-focus-within:text-amber-500 transition-colors" />
+              <input 
+                type="email" 
+                value={email} 
+                onChange={e => setEmail(e.target.value)} 
+                placeholder="Correo electrónico" 
+                className="w-full bg-black/40 border border-white/5 rounded-3xl pl-16 pr-8 py-5 text-white focus:border-amber-500 outline-none transition-all placeholder:text-white/20" 
+              />
+            </div>
+            <div className="relative group">
+              <Lock className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-white/20 group-focus-within:text-amber-500 transition-colors" />
+              <input 
+                type="password" 
+                value={pass} 
+                onChange={e => setPass(e.target.value)} 
+                placeholder="Contraseña" 
+                className="w-full bg-black/40 border border-white/5 rounded-3xl pl-16 pr-8 py-5 text-white focus:border-amber-500 outline-none transition-all placeholder:text-white/20" 
+              />
+            </div>
             {error && (
               <div className="flex items-center gap-2 p-4 bg-orange-500/10 border border-orange-500/20 rounded-2xl text-orange-400 text-xs font-bold animate-shake">
                 <AlertCircle className="w-4 h-4 shrink-0" />
@@ -138,10 +189,11 @@ export default function Auth({ onLogin }: { onLogin: () => void }) {
 
             <button 
               onClick={handleGuestLogin} 
-              className="w-full bg-white/5 hover:bg-white/10 text-white font-black py-5 rounded-3xl flex items-center justify-center gap-3 active:scale-95 transition-all border border-white/10"
+              disabled={isLoading}
+              className="w-full bg-white/5 hover:bg-white/10 text-white font-black py-5 rounded-3xl flex items-center justify-center gap-3 active:scale-95 transition-all border border-white/10 disabled:opacity-50"
             >
-              <User className="w-4 h-4 text-amber-500" />
-              <span className="text-[10px] uppercase tracking-widest">Modo Visitante</span>
+              {isLoading ? <Loader2 className="w-4 h-4 animate-spin text-amber-500" /> : <Ghost className="w-4 h-4 text-amber-500" />}
+              <span className="text-[10px] uppercase tracking-widest">Entrar como Invitado</span>
             </button>
           </div>
 

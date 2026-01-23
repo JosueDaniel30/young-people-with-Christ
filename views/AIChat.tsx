@@ -68,7 +68,8 @@ const MessageItem: React.FC<{
                   <button onClick={() => { feedback.playClick(); onPlay(message.text); }} className="p-2 hover:bg-amber-500/10 rounded-xl text-amber-600 dark:text-amber-400 transition-all">
                     <Volume2 className="w-4 h-4" />
                   </button>
-                  <button handleCopy={handleCopy} className="p-2 hover:bg-amber-500/10 rounded-xl text-amber-600 dark:text-amber-400 transition-all">
+                  {/* Fix: changed handleCopy prop to onClick */}
+                  <button onClick={handleCopy} className="p-2 hover:bg-amber-500/10 rounded-xl text-amber-600 dark:text-amber-400 transition-all">
                     {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
                   </button>
                   <button onClick={() => shareContent("Consejo Paternal", message.text)} className="p-2 hover:bg-amber-500/10 rounded-xl text-amber-600 dark:text-amber-400 transition-all">

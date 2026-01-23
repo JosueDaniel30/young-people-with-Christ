@@ -1,58 +1,66 @@
 
 import React, { useState, useEffect } from 'react';
-import { MessageSquare, Heart, Share2, Send, Sparkles, PlusCircle, Clock, Quote, Lamp, Zap, RefreshCw, BookOpen } from 'lucide-react';
-import { loadDB, addReflection, likeReflection } from '../store/db';
+import { MessageSquare, Heart, Share2, Send, Sparkles, PlusCircle, Clock, Quote, Lamp, Zap, RefreshCw, BookOpen, Loader2 } from 'lucide-react';
+import { loadDB, addReflection, likeReflection, subscribeToReflections } from '../store/db';
 import { feedback } from '../services/audioFeedback';
 import { shareContent } from '../services/shareService';
-import { BibleVerse } from '../types';
+import { BibleVerse, Reflection } from '../types';
 
 const Community: React.FC<{ refreshState: () => void }> = ({ refreshState }) => {
   const state = loadDB();
   const isDarkMode = state.user.theme === 'dark';
   const [newReflectionText, setNewReflectionText] = useState('');
   const [showForm, setShowForm] = useState(false);
-  const reflections = state.reflections || [];
+  const [reflections, setReflections] = useState<Reflection[]>(state.reflections || []);
+  const [isSyncing, setIsSyncing] = useState(true);
   
   const [dailyVerse, setDailyVerse] = useState<BibleVerse | null>(null);
 
   useEffect(() => {
     const cached = localStorage.getItem('ignite_daily_verse');
-    if (cached) {
-      setDailyVerse(JSON.parse(cached));
-    }
+    if (cached) setDailyVerse(JSON.parse(cached));
+
+    // Suscribirse a cambios en tiempo real
+    const unsubscribe = subscribeToReflections((data) => {
+      setReflections(data);
+      setIsSyncing(false);
+      refreshState();
+    });
+
+    return () => unsubscribe();
   }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newReflectionText.trim()) return;
 
     feedback.playClick();
-    addReflection({ 
+    await addReflection({ 
       text: newReflectionText,
       verseReference: dailyVerse ? `${dailyVerse.book} ${dailyVerse.chapter}:${dailyVerse.verse}` : 'RVR1960'
     });
     setNewReflectionText('');
     setShowForm(false);
     feedback.playSuccess();
-    refreshState();
   };
 
   const handleLike = (id: string) => {
     feedback.playClick();
     likeReflection(id);
-    refreshState();
   };
 
   return (
     <div className="p-4 sm:p-10 max-w-4xl mx-auto space-y-12 animate-in fade-in duration-700 pb-32">
       
-      {/* Header del Muro */}
       <div className="flex flex-col sm:flex-row justify-between items-center gap-6">
         <div className="text-center sm:text-left">
-          <h2 className={`text-4xl sm:text-6xl font-black uppercase tracking-tighter font-heading ${isDarkMode ? 'text-white' : 'text-amber-950'}`}>
-            MURO DE <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-500 to-orange-600">VIDA</span>
-          </h2>
-          <p className="text-[10px] font-black uppercase tracking-[0.4em] text-amber-600/60 mt-2">Sabiduría Compartida</p>
+          <div className="flex items-center justify-center sm:justify-start gap-3 mb-2">
+            <h2 className={`text-4xl sm:text-6xl font-black uppercase tracking-tighter font-heading ${isDarkMode ? 'text-white' : 'text-amber-950'}`}>
+              MURO DE <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-500 to-orange-600">VIDA</span>
+            </h2>
+            {isSyncing && <Loader2 className="w-5 h-5 text-amber-500 animate-spin" />}
+          </div>
+          <p className="text-[10px] font-black uppercase tracking-[0.4em] text-amber-600/60">Conectados en el Espíritu</p>
         </div>
         
         <button 
@@ -64,7 +72,6 @@ const Community: React.FC<{ refreshState: () => void }> = ({ refreshState }) => 
         </button>
       </div>
 
-      {/* Tarjeta de Inspiración Diaria */}
       {dailyVerse && !showForm && (
         <section className={`p-8 rounded-[3rem] border-2 relative overflow-hidden group transition-all ${isDarkMode ? 'bg-amber-950/20 border-amber-500/10' : 'bg-amber-50 border-amber-100'}`}>
            <div className="absolute -top-10 -right-10 opacity-5 group-hover:rotate-12 transition-transform duration-1000">
@@ -95,13 +102,13 @@ const Community: React.FC<{ refreshState: () => void }> = ({ refreshState }) => 
              <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-500">
                <Sparkles className="w-5 h-5" />
              </div>
-             <p className="text-[10px] font-black uppercase tracking-widest text-amber-600">¿Qué te ha revelado el Padre hoy?</p>
+             <p className="text-[10px] font-black uppercase tracking-widest text-amber-600">Comparte tu luz con la iglesia</p>
           </div>
           
           <textarea 
             value={newReflectionText}
             onChange={(e) => setNewReflectionText(e.target.value)}
-            placeholder="Escribe tu revelación aquí..."
+            placeholder="¿Qué te dice Dios hoy?..."
             className={`w-full p-8 rounded-[2rem] h-40 outline-none focus:ring-2 focus:ring-amber-500 transition-all text-lg font-medium leading-relaxed resize-none ${isDarkMode ? 'bg-black/40 text-white border-white/5' : 'bg-amber-50/50 text-amber-950 border-transparent'}`}
           />
           
@@ -120,7 +127,7 @@ const Community: React.FC<{ refreshState: () => void }> = ({ refreshState }) => 
       <div className="space-y-10">
         {reflections.length > 0 ? (
           reflections.map((ref) => (
-            <div key={ref.id} className={`p-10 rounded-[3.5rem] border-2 transition-all hover:scale-[1.01] relative group overflow-hidden ${isDarkMode ? 'bg-amber-950/10 border-white/5 shadow-amber-900/5' : 'bg-white border-amber-50 shadow-xl shadow-amber-100/20'}`}>
+            <div key={ref.id} className={`p-10 rounded-[3.5rem] border-2 transition-all hover:scale-[1.01] relative group overflow-hidden ${isDarkMode ? 'bg-amber-950/20 border-white/5 shadow-amber-900/5' : 'bg-white border-amber-50 shadow-xl shadow-amber-100/20'}`}>
               <div className="absolute top-0 right-0 p-8 opacity-5 text-amber-500">
                 <Quote className="w-24 h-24 fill-current" />
               </div>
@@ -134,7 +141,7 @@ const Community: React.FC<{ refreshState: () => void }> = ({ refreshState }) => 
                       <h4 className={`font-black text-xl tracking-tight ${isDarkMode ? 'text-amber-50' : 'text-amber-950'}`}>{ref.userName}</h4>
                       <div className="flex items-center gap-2 mt-1">
                         <Clock className="w-3 h-3 text-amber-700/40" />
-                        <span className="text-[9px] text-amber-700/40 font-black uppercase tracking-widest">{new Date(ref.timestamp).toLocaleDateString()}</span>
+                        <span className="text-[9px] text-amber-700/40 font-black uppercase tracking-widest">{new Date(ref.timestamp).toLocaleString()}</span>
                         {ref.verseReference && (
                           <span className="text-[8px] px-2 py-0.5 rounded bg-amber-500/10 text-amber-600 font-black uppercase tracking-widest">{ref.verseReference}</span>
                         )}
@@ -148,7 +155,7 @@ const Community: React.FC<{ refreshState: () => void }> = ({ refreshState }) => 
                         <Heart className={`w-5 h-5 text-orange-500 ${ref.likes > 0 ? 'fill-current' : ''}`} />
                         <span className="text-sm font-black text-amber-700/60">{ref.likes}</span>
                       </button>
-                      <button onClick={() => shareContent(`Reflexión`, ref.text)} className="flex items-center gap-3">
+                      <button onClick={() => shareContent(`Reflexión de ${ref.userName}`, ref.text)} className="flex items-center gap-3">
                         <Share2 className="w-5 h-5 text-amber-600" />
                         <span className="text-[10px] font-black uppercase tracking-widest text-amber-700/40">Compartir</span>
                       </button>
