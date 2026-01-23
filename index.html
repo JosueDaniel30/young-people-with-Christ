@@ -1,39 +1,40 @@
 
 <!DOCTYPE html>
-<html lang="es" class="scroll-smooth">
+<html lang="es" class="scroll-smooth dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Ignite Youth - Jóvenes con Cristo</title>
     
     <!-- PWA Primary Meta Tags -->
-    <meta name="theme-color" content="#7c3aed">
-    <meta name="msapplication-TileColor" content="#7c3aed">
-    <meta name="description" content="Ignite Youth - La plataforma espiritual para la nueva generación.">
+    <meta name="theme-color" content="#d97706">
+    <meta name="msapplication-TileColor" content="#d97706">
+    <meta name="description" content="Ignite Youth - Sabiduría y Comunidad para la nueva generación.">
     
     <!-- iOS / Apple Specific Meta Tags -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Ignite">
-    <link rel="apple-touch-icon" href="https://api.dicebear.com/7.x/shapes/png?seed=Ignite&backgroundColor=7c3aed&width=180&height=180&v=2">
+    <link rel="apple-touch-icon" href="https://api.dicebear.com/7.x/shapes/png?seed=Zap&backgroundColor=d97706&width=180&height=180&v=2">
     
     <!-- Favicon and Manifest -->
-    <link rel="icon" type="image/png" sizes="32x32" href="https://api.dicebear.com/7.x/shapes/png?seed=Ignite&backgroundColor=7c3aed&width=32&height=32&v=2">
+    <link rel="icon" type="image/png" sizes="32x32" href="https://api.dicebear.com/7.x/shapes/png?seed=Zap&backgroundColor=d97706&width=32&height=32&v=2">
     <link rel="manifest" href="manifest.json">
     
     <script type="importmap">
-    {
-      "imports": {
-        "react": "https://esm.sh/react@^19.2.3",
-        "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
-        "react/": "https://esm.sh/react@^19.2.3/",
-        "@google/genai": "https://esm.sh/@google/genai@^1.38.0",
-        "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
-        "recharts": "https://esm.sh/recharts@^3.6.0",
-        "firebase/": "https://esm.sh/firebase@^12.8.0/"
-      }
-    }
-    </script>
+{
+  "imports": {
+    "react": "https://esm.sh/react@^19.2.3",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "@google/genai": "https://esm.sh/@google/genai@^1.38.0",
+    "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
+    "recharts": "https://esm.sh/recharts@^3.6.0",
+    "firebase/": "https://esm.sh/firebase@^12.8.0/",
+    "vite": "https://esm.sh/vite@^7.3.1"
+  }
+}
+</script>
 
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -43,6 +44,21 @@
         darkMode: 'class',
         theme: {
           extend: {
+            colors: {
+              brand: {
+                50: '#fffbeb',
+                100: '#fef3c7',
+                200: '#fde68a',
+                300: '#fcd34d',
+                400: '#fbbf24',
+                500: '#f59e0b',
+                600: '#d97706',
+                700: '#b45309',
+                800: '#92400e',
+                900: '#78350f',
+                950: '#451a03',
+              },
+            },
             fontFamily: {
               sans: ['Plus Jakarta Sans', 'sans-serif'],
               heading: ['Space Grotesk', 'sans-serif'],
@@ -76,15 +92,18 @@
 
     <style>
         :root {
-            --brand-primary: #7c3aed;
-            --bg-light: #f8faff;
-            --bg-dark: #030014;
+            --brand-primary: #d97706;
+            --bg-light: #fffcf8;
+            --bg-dark: #111111; /* Negro más claro como se solicitó */
         }
 
         .safe-pb { padding-bottom: env(safe-area-inset-bottom); }
         .safe-pt { padding-top: env(safe-area-inset-top); }
 
-        html { background-color: #7c3aed; } /* Color base para splash screen */
+        html { 
+            background-color: var(--bg-dark); 
+            transition: background-color 0.3s ease;
+        }
         
         body { 
             background-color: var(--bg-light);
@@ -97,28 +116,29 @@
 
         html.dark body {
             background-color: var(--bg-dark);
+            color: #fef3c7;
         }
         
         .glass {
-            background: rgba(255, 255, 255, 0.7);
+            background: rgba(255, 256, 255, 0.7);
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(124, 58, 237, 0.1);
+            border: 1px solid rgba(217, 119, 6, 0.1);
         }
         .dark .glass {
-            background: rgba(15, 10, 40, 0.6);
+            background: rgba(20, 20, 20, 0.6); /* Ajustado para el nuevo fondo */
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(217, 119, 6, 0.15);
         }
 
         .mesh-gradient {
-            background-image: radial-gradient(at 0% 0%, rgba(124, 58, 237, 0.05) 0, transparent 50%), 
-                              radial-gradient(at 100% 0%, rgba(244, 63, 94, 0.05) 0, transparent 50%);
+            background-image: radial-gradient(at 0% 0%, rgba(217, 119, 6, 0.08) 0, transparent 50%), 
+                              radial-gradient(at 100% 0%, rgba(180, 83, 9, 0.08) 0, transparent 50%);
         }
         .dark .mesh-gradient {
-            background-image: radial-gradient(at 0% 0%, rgba(124, 58, 237, 0.15) 0, transparent 50%), 
-                              radial-gradient(at 100% 0%, rgba(244, 63, 94, 0.1) 0, transparent 50%);
+            background-image: radial-gradient(at 0% 0%, rgba(217, 119, 6, 0.1) 0, transparent 50%), 
+                              radial-gradient(at 100% 0%, rgba(180, 83, 9, 0.08) 0, transparent 50%);
         }
 
         .scrollbar-hide::-webkit-scrollbar { display: none; }

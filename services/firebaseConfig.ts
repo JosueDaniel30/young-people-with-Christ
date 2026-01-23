@@ -1,21 +1,3 @@
 
-import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
-
-/**
- * Configuración oficial del proyecto "Ignite Youth".
- */
-const firebaseConfig = {
-  apiKey: "AIzaSyDQmNMSbts42YaM7QkDPbhkc9alHzMMYSM",
-  authDomain: "ignite-youth-2a14a.firebaseapp.com",
-  projectId: "ignite-youth-2a14a",
-  storageBucket: "ignite-youth-2a14a.firebasestorage.app",
-  messagingSenderId: "902887114505",
-  appId: "1:902887114505:web:855eb36314fcb7b1a2f5d8",
-  measurementId: "G-5EWF99NBW3"
-};
-
-const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
-export const db = getFirestore(app);
+// Archivo eliminado - La aplicación ahora usa LocalStorage
+export {};

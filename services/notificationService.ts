@@ -1,6 +1,7 @@
 
-import { loadDB } from "../store/db";
-
+/**
+ * Servicio de notificaciones nativas del navegador mejorado.
+ */
 class NotificationService {
   /**
    * Solicita permiso para mostrar notificaciones.
@@ -23,27 +24,28 @@ class NotificationService {
   /**
    * Envía una notificación local usando el Service Worker.
    */
-  async sendLocalNotification(title: string, body: string, data?: any) {
-    const db = loadDB();
-    if (!db.user.notificationsEnabled || Notification.permission !== 'granted') return;
+  async sendLocalNotification(title: string, body: string, enabled: boolean, data?: any) {
+    // Si las notificaciones globales no están habilitadas por el usuario o permiso denegado, salir
+    if (!enabled || Notification.permission !== 'granted') return;
 
     if ('serviceWorker' in navigator) {
       try {
         const registration = await navigator.serviceWorker.ready;
         registration.showNotification(title, {
           body,
-          icon: 'https://api.dicebear.com/7.x/shapes/png?seed=Ignite&backgroundColor=7c3aed',
-          badge: 'https://api.dicebear.com/7.x/shapes/png?seed=Ignite&backgroundColor=7c3aed',
+          icon: 'https://api.dicebear.com/7.x/shapes/png?seed=Zap&backgroundColor=d97706',
+          badge: 'https://api.dicebear.com/7.x/shapes/png?seed=Zap&backgroundColor=d97706',
           vibrate: [200, 100, 200],
           data: data || { url: window.location.origin },
-          tag: 'ignite-alert'
+          tag: 'ignite-alert',
+          silent: false
         } as any);
       } catch (e) {
         console.warn("Service Worker no listo para notificaciones, usando fallback.");
-        new Notification(title, { body });
+        new Notification(title, { body, icon: 'https://api.dicebear.com/7.x/shapes/png?seed=Zap&backgroundColor=d97706' });
       }
     } else {
-      new Notification(title, { body });
+      new Notification(title, { body, icon: 'https://api.dicebear.com/7.x/shapes/png?seed=Zap&backgroundColor=d97706' });
     }
   }
 

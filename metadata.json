@@ -1,6 +1,6 @@
 {
-  "name": "Jóvenes con Cristo",
-  "description": "Una aplicación vibrante para jóvenes de la iglesia con Biblia Reina Valera 1960, metas gamificadas, listas de reproducción y análisis por IA.",
+  "name": "Ignite Youth - Biblia RVR1960",
+  "description": "Aplicación para jóvenes con Biblia Reina Valera 1960 integrada, buscador inteligente y mentor IA.",
   "requestFramePermissions": [
     "camera",
     "microphone"

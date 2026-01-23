@@ -1,6 +1,10 @@
+
 import { GoogleGenAI, Modality, Type } from "@google/genai";
-import { getCachedChapter, saveChapterToCache, isChapterCached, loadDB } from "../store/db";
+import { loadDB, getCachedChapter } from "../store/db";
 import { BibleVerse } from "../types";
+import { fetchFullChapter, searchLocalBible } from "./bibleRepository";
+
+let sharedAudioContext: AudioContext | null = null;
 
 const getAI = () => {
   return new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -10,18 +14,33 @@ export const analyzeVerse = async (verse: string) => {
   const ai = getAI();
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
-    contents: `Analiza este versículo bíblico (RVR1960) para un público joven Gen Z/Alpha. Usa un lenguaje vibrante, directo y empoderador. Explica el significado práctico para la vida moderna y termina con un "Desafío Ignite" (un paso de acción para hoy): "${verse}"`,
-    config: { temperature: 0.8 }
+    contents: `Analiza este versículo (RVR1960) para un joven Gen Z. Sé directo, usa lenguaje moderno pero respetuoso. 
+    Estructura: 
+    1. ¿Qué significa esto hoy?
+    2. Un "Desafío Ignite" práctico.
+    Versículo: "${verse}"`,
+    config: { 
+      temperature: 0.7,
+      thinkingConfig: { thinkingBudget: 0 } 
+    }
   });
   return response.text;
 };
 
 export const getRandomVerse = async (): Promise<BibleVerse> => {
+  const fallbacks = [
+    { book: 'Josué', chapter: 1, verse: 9, text: 'Mira que te mando que te esfuerces y seas valiente; no temas ni desmayes, porque Jehová tu Dios estará contigo en dondequiera que vayas.' },
+    { book: 'Salmos', chapter: 23, verse: 1, text: 'Jehová es mi pastor; nada me faltará.' },
+    { book: 'Juan', chapter: 3, verse: 16, text: 'Porque de tal manera amó Dios al mundo, que ha dado a su Hijo unigénito, para que todo aquel que en él cree, no se pierda, mas tenga vida eterna.' }
+  ];
+  
+  if (!navigator.onLine) return fallbacks[Math.floor(Math.random() * fallbacks.length)];
+  
   const ai = getAI();
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: "Selecciona un versículo inspirador y poderoso de la Biblia Reina Valera 1960 ideal para jóvenes. Devuelve estrictamente un objeto JSON con: book, chapter, verse, text.",
+      contents: "Genera un versículo RVR1960 inspirador al azar. JSON: book, chapter, verse, text.",
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -38,74 +57,40 @@ export const getRandomVerse = async (): Promise<BibleVerse> => {
     });
     return JSON.parse(response.text?.trim() || '{}') as BibleVerse;
   } catch (error) {
-    console.error("Error fetching random verse:", error);
-    return {
-      book: 'Josué',
-      chapter: 1,
-      verse: 9,
-      text: 'Mira que te mando que te esfuerces y seas valiente; no temas ni desmayes, porque Jehová tu Dios estará contigo en dondequiera que vayas.'
-    };
+    return fallbacks[0];
   }
 };
 
-export interface BibleSearchParams {
-  query?: string;
-  book?: string;
-  chapter?: number;
-  verse?: number;
-  category?: string; // Nuevo: Filtrar por categoría (ej: Evangelios, Poéticos)
-}
-
-export const searchBible = async (params: string | BibleSearchParams) => {
-  const isOffline = !navigator.onLine;
-  const isChapterRequest = typeof params !== 'string' && params.book && params.chapter && !params.verse && !params.query;
-  const book = typeof params !== 'string' ? params.book : undefined;
-  const chapter = typeof params !== 'string' ? params.chapter : undefined;
-
-  if (isOffline) {
-    if (isChapterRequest && book && chapter) {
-      const cached = getCachedChapter(book, chapter);
-      if (cached) return cached;
-    }
-    return [];
-  }
-
-  const ai = getAI();
-  let prompt = "";
-  
-  if (typeof params === 'string') {
-    prompt = `Actúa como un motor de búsqueda bíblico avanzado para la versión Reina Valera 1960 (RVR1960). 
-    Debes procesar la siguiente consulta: "${params}". 
-    - Si es una cita (ej: "Juan 3:16" o "Génesis 1"), devuelve los versículos correspondientes.
-    - Si es una frase entre comillas, busca coincidencias exactas.
-    - Si es un tema o concepto (ej: "ansiedad", "amor"), devuelve los 10 versículos más relevantes y poderosos.
-    Devuelve estrictamente un JSON ARRAY de objetos con: book, chapter, verse, text.`;
-  } else {
-    const { query, book, chapter, verse, category } = params;
+export const searchBible = async (params: any) => {
+  // 1. Caso: Solicitud de Capítulo Completo
+  // Si tenemos libro y capítulo, usamos el repositorio estructurado (que tiene caché integrado)
+  if (params.book && params.chapter && !params.verse && !params.query) {
+    const results = await fetchFullChapter(params.book, params.chapter);
     
-    if (book && chapter && !verse && !query) {
-      // Carga de capítulo completo
-      prompt = `Provee el texto íntegro del capítulo ${chapter} de ${book} según la versión Reina Valera 1960 (RVR1960). 
-      MUY IMPORTANTE: Identifica los subtítulos de las secciones (perícopas) y asígnalos al campo 'title' del versículo donde comienza la sección. 
-      Devuelve estrictamente un JSON ARRAY de objetos con: book, chapter, verse, text, title (opcional).`;
-    } else if (query) {
-      // Búsqueda con filtros
-      let filterContext = "";
-      if (book) filterContext += ` específicamente en el libro de ${book}`;
-      if (category) filterContext += ` dentro de la categoría de libros: ${category}`;
-      
-      prompt = `Busca versículos sobre "${query}" en la Biblia Reina Valera 1960 (RVR1960)${filterContext}.
-      Prioriza versículos que sean impactantes y relevantes para la vida espiritual.
-      Devuelve estrictamente un JSON ARRAY de hasta 15 objetos con: book, chapter, verse, text.`;
-    } else {
-      prompt = `Obtén el texto RVR1960 de: ${book || ''} ${chapter || ''}:${verse || ''}. Devuelve JSON ARRAY de objetos con book, chapter, verse, text.`;
+    // Si por alguna razón fetchFullChapter devolvió vacío (ej. offline y no cacheado),
+    // intentamos una última búsqueda directa en el caché de la DB por si acaso.
+    if (results.length === 0) {
+      return getCachedChapter(params.book, params.chapter) || [];
     }
+    return results;
   }
 
+  // 2. Caso: Búsqueda Offline
+  if (!navigator.onLine) {
+    const query = typeof params === 'string' ? params : (params.query || '');
+    return searchLocalBible(query);
+  }
+
+  // 3. Caso: Búsqueda Semántica con IA (Online)
+  const ai = getAI();
+  const queryText = typeof params === 'string' ? params : params.query;
+  
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: prompt,
+      contents: `Busca versículos RVR1960 relacionados con: "${queryText}". 
+      IMPORTANTE: No resumas ni omitas versículos. Devuelve el texto completo de los resultados más relevantes. 
+      JSON ARRAY [book, chapter, verse, text]`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -116,33 +101,33 @@ export const searchBible = async (params: string | BibleSearchParams) => {
               book: { type: Type.STRING },
               chapter: { type: Type.NUMBER },
               verse: { type: Type.NUMBER },
-              text: { type: Type.STRING },
-              title: { type: Type.STRING }
+              text: { type: Type.STRING }
             },
             required: ["book", "chapter", "verse", "text"]
           }
         }
       }
     });
-    
-    const results = JSON.parse(response.text?.trim() || '[]');
-    if (isChapterRequest && book && chapter && results.length > 0) {
-      saveChapterToCache(book, chapter, results);
-    }
-    return results;
+    const aiResults = JSON.parse(response.text?.trim() || '[]');
+    return aiResults;
   } catch (e) {
-    console.error("Bible search error:", e);
-    return [];
+    // Si la IA falla, buscar en lo que el usuario ya ha leído (integrado)
+    return searchLocalBible(queryText);
   }
 };
 
 export const playAudio = async (text: string) => {
   if (!navigator.onLine || !text) return;
   try {
+    if (!sharedAudioContext) {
+      sharedAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+    }
+    if (sharedAudioContext.state === 'suspended') await sharedAudioContext.resume();
+
     const ai = getAI();
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash-preview-tts",
-      contents: [{ parts: [{ text: `Lee con voz inspiradora, pausada y clara: ${text}` }] }],
+      contents: [{ parts: [{ text: text }] }],
       config: {
         responseModalities: [Modality.AUDIO],
         speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } },
@@ -152,14 +137,13 @@ export const playAudio = async (text: string) => {
     const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
     if (!base64Audio) return;
 
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
-    const audioBuffer = await decodeAudioData(decode(base64Audio), audioContext, 24000, 1);
-    const source = audioContext.createBufferSource();
+    const audioBuffer = await decodeAudioData(decode(base64Audio), sharedAudioContext, 24000, 1);
+    const source = sharedAudioContext.createBufferSource();
     source.buffer = audioBuffer;
-    source.connect(audioContext.destination);
-    source.start();
+    source.connect(sharedAudioContext.destination);
+    source.start(0);
   } catch (error) {
-    console.error("Audio playback error:", error);
+    console.error("TTS Error:", error);
   }
 };
 
@@ -168,7 +152,11 @@ export const createBibleChat = () => {
   return ai.chats.create({
     model: 'gemini-3-flash-preview',
     config: {
-      systemInstruction: 'Eres Ignite, el Mentor Espiritual IA para jóvenes Gen Z y Alpha de una iglesia cristiana. Tu sabiduría proviene directamente de la Biblia Reina Valera 1960. Hablas con autoridad pero con profundo amor y dinamismo. Usas jerga moderna con respeto, eres empático, inspiras a la acción y nunca juzgas. Tu objetivo es conectar los problemas de hoy con la verdad eterna de Cristo.',
+      systemInstruction: `Eres un Mentor Espiritual de Ignite Youth. Usas la Reina Valera 1960. 
+      Tu objetivo es guiar a jóvenes en sus dudas, problemas y crecimiento. 
+      Habla con autoridad pero con mucho amor. Usa emojis de vez en cuando. 
+      Formatea tus respuestas con negritas para versículos y listas para consejos.`,
+      thinkingConfig: { thinkingBudget: 0 }
     },
   });
 };

@@ -10,10 +10,8 @@ import AIChatView from './views/AIChat.tsx';
 import AuthView from './views/Auth.tsx';
 import CommunityView from './views/Community.tsx';
 import PrayerRequestsView from './views/PrayerRequests.tsx';
-import { loadDB, handleDailyCheckIn, syncUserToLeaderboard, saveDB, updateUser } from './store/db.ts';
-import { auth, db } from './services/firebaseConfig.ts';
-import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { loadDB, handleDailyCheckIn, saveDB } from './store/db.ts';
+import { startSocialSimulation } from './services/socialSimulator.ts';
 import { Loader2, Zap } from 'lucide-react';
 
 const App: React.FC = () => {
@@ -23,61 +21,55 @@ const App: React.FC = () => {
   const [appState, setAppState] = useState(loadDB());
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        const userRef = doc(db, "users", firebaseUser.uid);
-        const userSnap = await getDoc(userRef);
-        
-        const state = loadDB();
-        if (userSnap.exists()) {
-          const cloudData = userSnap.data();
-          state.user = {
-            ...state.user,
-            id: firebaseUser.uid,
-            name: firebaseUser.displayName || state.user.name,
-            email: firebaseUser.email || state.user.email,
-            points: cloudData.points || 0,
-            level: cloudData.level || 0,
-            xpHistory: cloudData.xpHistory || []
-          };
-          saveDB(state);
-        }
-
+    const init = async () => {
+      // Cargamos la base de datos local
+      const state = loadDB();
+      
+      // Si el ID del usuario no es el predeterminado '1', significa que ya se registró
+      if (state.user && state.user.id !== '1' && state.user.id !== '') {
         setIsAuthenticated(true);
-        handleDailyCheckIn(); 
-        await syncUserToLeaderboard();
-        setAppState(loadDB());
-      } else {
-        setIsAuthenticated(false);
+        handleDailyCheckIn();
+        startSocialSimulation();
       }
-      setIsLoading(false);
-    });
+      
+      // Pequeña pausa estética para el splash screen
+      setTimeout(() => {
+        setIsLoading(false);
+      }, 1500);
+    };
+    init();
 
-    return () => unsubscribe();
+    const handleUpdate = () => setAppState(loadDB());
+    window.addEventListener('ignite_db_update', handleUpdate);
+    return () => window.removeEventListener('ignite_db_update', handleUpdate);
   }, []);
 
   const refreshState = () => {
     setAppState(loadDB());
   };
 
-  const handleLogout = async () => {
-    await signOut(auth);
-    localStorage.removeItem('ignite_youth_db');
+  const handleLogout = () => {
+    // Solo eliminamos la sesión activa pero mantenemos la DB para no perder la configuración
+    const state = loadDB();
+    state.user.id = '1'; 
+    saveDB(state);
+    
     setIsAuthenticated(false);
     setActiveTab('home');
+    refreshState();
   };
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#030014] flex flex-col items-center justify-center space-y-8">
+      <div className="min-h-screen bg-[#111111] flex flex-col items-center justify-center space-y-12">
         <div className="relative">
-          <div className="absolute inset-0 bg-violet-600 blur-[60px] opacity-50 animate-pulse" />
-          <Zap className="w-16 h-16 text-white relative z-10 fill-current animate-bounce" />
+          <div className="absolute inset-0 bg-amber-600 blur-[80px] opacity-40 animate-pulse" />
+          <Zap className="w-24 h-24 text-amber-500 relative z-10 fill-current animate-bounce-slow" />
         </div>
-        <div className="space-y-2 text-center">
-          <h2 className="text-white font-black uppercase tracking-[0.5em] text-xs">Conectando al Servidor</h2>
+        <div className="space-y-4 text-center">
+          <h2 className="text-amber-500 font-black uppercase tracking-[0.8em] text-[10px]">Encendiendo la Llama</h2>
           <div className="flex justify-center">
-            <Loader2 className="w-5 h-5 text-violet-500 animate-spin" />
+            <Loader2 className="w-6 h-6 text-amber-700/40 animate-spin" />
           </div>
         </div>
       </div>
@@ -85,7 +77,10 @@ const App: React.FC = () => {
   }
 
   if (!isAuthenticated) {
-    return <AuthView onLogin={() => setIsAuthenticated(true)} />;
+    return <AuthView onLogin={() => {
+      setIsAuthenticated(true);
+      startSocialSimulation();
+    }} />;
   }
 
   return (
