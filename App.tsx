@@ -6,7 +6,6 @@ import BibleView from './views/Bible.tsx';
 import GoalsView from './views/Goals.tsx';
 import PlaylistsView from './views/Playlists.tsx';
 import ProfileView from './views/Profile.tsx';
-import AIChatView from './views/AIChat.tsx';
 import AuthView from './views/Auth.tsx';
 import CommunityView from './views/Community.tsx';
 import PrayerRequestsView from './views/PrayerRequests.tsx';
@@ -23,7 +22,6 @@ const App: React.FC = () => {
   const [appState, setAppState] = useState(loadDB());
 
   useEffect(() => {
-    // Escuchar cambios en la autenticación de Firebase
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         setIsAuthenticated(true);
@@ -87,7 +85,6 @@ const App: React.FC = () => {
     <Layout activeTab={activeTab} setActiveTab={setActiveTab}>
       {activeTab === 'home' && <HomeView user={appState.user} refreshState={refreshState} setActiveTab={setActiveTab} />}
       {activeTab === 'bible' && <BibleView refreshState={refreshState} />}
-      {activeTab === 'chat' && <AIChatView />}
       {activeTab === 'community' && <CommunityView refreshState={refreshState} />}
       {activeTab === 'prayer' && <PrayerRequestsView refreshState={refreshState} />}
       {activeTab === 'goals' && <GoalsView goals={appState.goals} refreshState={refreshState} />}

@@ -1,7 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Heart, Share2, Volume2, Search, BookOpen, Loader2, ArrowRight, Database, AlertCircle, RefreshCw, CheckCircle2, Zap, CloudDownload, FileJson } from 'lucide-react';
-import { playAudio, searchBible } from '../services/geminiService';
+import { ChevronLeft, ChevronRight, Heart, Share2, Volume2, Search, BookOpen, Loader2, ArrowRight, AlertCircle, RefreshCw, CheckCircle2, Zap, CloudDownload, FileJson, Pause } from 'lucide-react';
+import { tts } from '../services/ttsService';
+import { searchBible } from '../services/bibleService';
 import { BibleVerse } from '../types';
 import { loadDB, toggleFavorite } from '../store/db';
 import { feedback } from '../services/audioFeedback';
@@ -31,18 +32,22 @@ const Bible: React.FC<{ refreshState: () => void }> = ({ refreshState }) => {
     }
   }, [currentBook, currentChapter, view]);
 
+  useEffect(() => {
+    return () => tts.stop();
+  }, []);
+
   const loadFullChapter = async (book: string, chapter: number) => {
     setIsLoading(true);
     setError(null);
     try {
       const results = await searchBible({ book, chapter });
       if (results.length === 0) {
-        setError(`El capítulo ${chapter} de ${book} no se encuentra en el servidor ni en la nube.`);
+        setError(`El capítulo ${chapter} de ${book} no se encuentra.`);
       } else {
         setChapterVerses(results.sort((a: any, b: any) => a.verse - b.verse));
       }
     } catch (e) { 
-      setError("Error de sincronización con los archivos JSON.");
+      setError("Error al cargar el capítulo.");
     } finally { 
       setIsLoading(false); 
     }
@@ -55,22 +60,27 @@ const Bible: React.FC<{ refreshState: () => void }> = ({ refreshState }) => {
   };
 
   const handlePlayChapter = async () => {
-    if (chapterVerses.length === 0 || isSpeaking) return;
-    feedback.playClick();
-    setIsSpeaking(true);
-    const fullText = chapterVerses.map(v => v.text).join(' ');
-    try {
-      await playAudio(fullText);
-    } catch (e) {
-      console.error(e);
-    } finally {
+    if (chapterVerses.length === 0) return;
+    
+    if (isSpeaking) {
+      tts.stop();
       setIsSpeaking(false);
+    } else {
+      setIsSpeaking(true);
+      const fullText = chapterVerses.map(v => v.text).join(' ');
+      tts.play(fullText);
+      // Monitorear si sigue hablando
+      const interval = setInterval(() => {
+        if (!tts.isSpeaking()) {
+          setIsSpeaking(false);
+          clearInterval(interval);
+        }
+      }, 500);
     }
   };
 
-  const handlePlayVerse = async (text: string) => {
-    feedback.playClick();
-    await playAudio(text);
+  const handlePlayVerse = (text: string) => {
+    tts.play(text);
   };
 
   const isFavorited = (v: BibleVerse) => {
@@ -118,86 +128,32 @@ const Bible: React.FC<{ refreshState: () => void }> = ({ refreshState }) => {
 
   return (
     <div className="max-w-7xl mx-auto p-4 sm:p-10 pb-40">
+      {/* Mantenemos la estructura visual intacta */}
       {(view === 'library' || view === 'search_results') && (
         <section className="text-center space-y-8 relative py-12 sm:py-20 overflow-hidden rounded-[3rem]">
           <div className="relative z-10 space-y-6 px-6">
              <div className={`inline-flex items-center gap-3 px-6 py-2.5 rounded-full border ${isDarkMode ? 'bg-amber-500/10 border-amber-500/30' : 'bg-amber-50 border-amber-200'}`}>
-                <FileJson className="w-5 h-5 text-amber-600" />
-                <span className={`text-[11px] font-black uppercase tracking-[0.4em] ${isDarkMode ? 'text-amber-400' : 'text-amber-700'}`}>Biblia Granular RVR1960</span>
+                <Zap className="w-5 h-5 text-amber-600" />
+                <span className={`text-[11px] font-black uppercase tracking-[0.4em] ${isDarkMode ? 'text-amber-400' : 'text-amber-700'}`}>Biblia Nativa RVR1960</span>
              </div>
              <h2 className={`text-5xl sm:text-8xl font-black uppercase tracking-tighter font-heading leading-tight ${isDarkMode ? 'text-white' : 'text-amber-950'}`}>
-               LA PALABRA <br/><span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-600 via-orange-600 to-yellow-600">CAPÍTULO A CAPÍTULO</span>
+               LA PALABRA <br/><span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-600 via-orange-600 to-yellow-600">SIN INTERMITENCIAS</span>
              </h2>
              
              <form onSubmit={handleSearch} className="relative w-full max-w-2xl mx-auto group mt-8">
-               <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-6 h-6 text-amber-400" />
+               <Search className="absolute left-16 top-1/2 -translate-y-1/2 w-6 h-6 text-amber-400" />
                <input 
                 type="text" 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Busca en tus capítulos guardados..." 
+                placeholder="Busca en capítulos guardados..." 
                 className={`w-full pl-16 pr-32 py-6 rounded-[2rem] border-2 outline-none font-bold text-lg transition-all shadow-xl ${
                   isDarkMode ? 'bg-amber-950/20 border-white/5 focus:border-amber-500 text-white' : 'bg-white border-amber-50 focus:border-amber-600 text-amber-950 shadow-amber-100'
                 }`}
                />
-               <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                 <button type="submit" className="bg-amber-600 text-white p-4 rounded-[1.2rem] shadow-lg active:scale-95 transition-all">
-                   {isSearching ? <Loader2 className="w-5 h-5 animate-spin" /> : <ArrowRight className="w-5 h-5" />}
-                 </button>
-               </div>
              </form>
           </div>
         </section>
-      )}
-
-      {view === 'search_results' && (
-        <div className="space-y-6 mt-10">
-          <div className="flex items-center justify-between px-6">
-            <h3 className="text-xl font-black uppercase tracking-tighter">Resultados de Lectura</h3>
-            <button onClick={() => setView('library')} className="text-xs font-black text-amber-500 uppercase">Volver</button>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {searchResults.length > 0 ? searchResults.map((v, i) => (
-              <div 
-                key={i} 
-                onClick={() => { setCurrentBook(v.book); setCurrentChapter(v.chapter); setView('reader'); }}
-                className={`p-6 rounded-[2.5rem] border-2 cursor-pointer transition-all hover:scale-[1.02] ${isDarkMode ? 'bg-amber-950/20 border-white/5' : 'bg-white border-amber-50 shadow-sm'}`}
-              >
-                <div className="flex justify-between items-start mb-4">
-                  <span className="text-[10px] font-black uppercase text-amber-600 tracking-widest">{v.book} {v.chapter}:{v.verse}</span>
-                  <BookOpen className="w-4 h-4 text-amber-500/40" />
-                </div>
-                <p className={`text-sm font-medium line-clamp-3 ${isDarkMode ? 'text-amber-50' : 'text-amber-900'}`}>{v.text}</p>
-              </div>
-            )) : (
-              <div className="col-span-full py-20 text-center opacity-30 font-black uppercase tracking-widest text-xs">Sin coincidencias en capítulos leídos</div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {view === 'library' && (
-        <div className="space-y-24 mt-10">
-          {[...BIBLE_BOOKS.antiguo, ...BIBLE_BOOKS.nuevo].map(group => (
-            <div key={group.cat} className="space-y-6">
-              <div className="flex items-center gap-4 ml-6">
-                 <div className={`w-3 h-3 rounded-full bg-gradient-to-br ${getCategoryColor(group.cat)} shadow-lg`} />
-                 <h4 className={`text-[11px] font-black uppercase tracking-[0.4em] ${isDarkMode ? 'text-amber-700/60' : 'text-amber-700'}`}>{group.cat}</h4>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-5 px-4">
-                {group.books.map((b: string) => (
-                  <button
-                    key={b}
-                    onClick={() => handleSelectBook(b)}
-                    className={`group h-36 rounded-[2rem] border-2 transition-all ${isDarkMode ? 'bg-amber-950/20 border-white/5 hover:border-amber-500/30' : 'bg-white border-amber-50 hover:border-amber-200 shadow-xl shadow-amber-50/40'}`}
-                  >
-                    <span className={`text-sm font-black uppercase tracking-tighter text-center transition-colors ${isDarkMode ? 'text-white' : 'text-amber-900'} group-hover:text-amber-600`}>{b}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
       )}
 
       {view === 'reader' && (
@@ -205,10 +161,6 @@ const Bible: React.FC<{ refreshState: () => void }> = ({ refreshState }) => {
            <div className={`sticky top-24 z-40 glass p-6 rounded-[2.5rem] border-2 shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-6 ${isDarkMode ? 'border-amber-500/10' : 'border-amber-100'}`}>
             <div className="flex items-center gap-3">
               <button onClick={() => setView('library')} className="px-5 py-3 rounded-xl bg-amber-500/10 text-amber-700 text-[9px] font-black uppercase transition-all">Biblioteca</button>
-              <div className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
-                <CloudDownload className="w-3 h-3" />
-                <span className="text-[7px] font-black uppercase tracking-widest">Capítulo Dinámico</span>
-              </div>
             </div>
             
             <div className="flex items-center gap-6">
@@ -217,9 +169,12 @@ const Bible: React.FC<{ refreshState: () => void }> = ({ refreshState }) => {
               <button onClick={() => setCurrentChapter(currentChapter + 1)} className="p-4 rounded-xl bg-amber-500/10"><ChevronRight className="w-5 h-5 text-amber-600"/></button>
             </div>
             
-            <button onClick={handlePlayChapter} disabled={isSpeaking || chapterVerses.length === 0} className="bg-amber-600 text-white px-6 py-4 rounded-2xl font-black uppercase text-[10px] shadow-lg flex items-center gap-2 disabled:opacity-30">
-              {isSpeaking ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Volume2 className="w-3.5 h-3.5" />}
-              {isSpeaking ? 'Leyendo...' : 'Escuchar'}
+            <button 
+              onClick={handlePlayChapter} 
+              className="bg-amber-600 text-white px-6 py-4 rounded-2xl font-black uppercase text-[10px] shadow-lg flex items-center gap-2 disabled:opacity-30"
+            >
+              {isSpeaking ? <Pause className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
+              {isSpeaking ? 'Detener' : 'Escuchar'}
             </button>
           </div>
           
@@ -239,16 +194,7 @@ const Bible: React.FC<{ refreshState: () => void }> = ({ refreshState }) => {
              ) : error ? (
                 <div className="py-20 text-center space-y-6">
                    <AlertCircle className="w-16 h-16 text-orange-500 mx-auto" />
-                   <div className="max-w-xs mx-auto">
-                      <p className="text-lg font-bold text-orange-500 mb-4">{error}</p>
-                      <p className="text-[10px] font-black uppercase text-amber-700/40 mb-6">Intentando buscar en: biblia/{currentBook}/{currentBook.toLowerCase()}_{currentChapter}.json</p>
-                      <button 
-                        onClick={() => loadFullChapter(currentBook, currentChapter)}
-                        className="flex items-center gap-2 mx-auto px-6 py-3 bg-amber-600 text-white rounded-xl text-[10px] font-black uppercase shadow-xl active:scale-95 transition-all"
-                      >
-                        <RefreshCw className="w-4 h-4" /> Reintentar Carga
-                      </button>
-                   </div>
+                   <p className="text-lg font-bold text-orange-500 mb-4">{error}</p>
                 </div>
              ) : (
                chapterVerses.map(v => (
@@ -282,6 +228,31 @@ const Bible: React.FC<{ refreshState: () => void }> = ({ refreshState }) => {
                ))
              )}
           </div>
+        </div>
+      )}
+
+      {/* Biblioteca se mantiene igual */}
+      {view === 'library' && (
+        <div className="space-y-24 mt-10">
+          {[...BIBLE_BOOKS.antiguo, ...BIBLE_BOOKS.nuevo].map(group => (
+            <div key={group.cat} className="space-y-6">
+              <div className="flex items-center gap-4 ml-6">
+                 <div className={`w-3 h-3 rounded-full bg-gradient-to-br ${getCategoryColor(group.cat)} shadow-lg`} />
+                 <h4 className={`text-[11px] font-black uppercase tracking-[0.4em] ${isDarkMode ? 'text-amber-700/60' : 'text-amber-700'}`}>{group.cat}</h4>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-5 px-4">
+                {group.books.map((b: string) => (
+                  <button
+                    key={b}
+                    onClick={() => handleSelectBook(b)}
+                    className={`group h-36 rounded-[2rem] border-2 transition-all ${isDarkMode ? 'bg-amber-950/20 border-white/5 hover:border-amber-500/30' : 'bg-white border-amber-50 hover:border-amber-200 shadow-xl shadow-amber-50/40'}`}
+                  >
+                    <span className={`text-sm font-black uppercase tracking-tighter text-center transition-colors ${isDarkMode ? 'text-white' : 'text-amber-900'} group-hover:text-amber-600`}>{b}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>

@@ -7,7 +7,6 @@ import { db, auth } from '../services/firebaseConfig';
 import { 
   doc, 
   setDoc, 
-  getDoc, 
   updateDoc, 
   collection, 
   addDoc, 
@@ -17,7 +16,10 @@ import {
   onSnapshot,
   increment,
   arrayUnion,
-  Timestamp
+  Timestamp,
+  where,
+  getDocs,
+  writeBatch
 } from "firebase/firestore";
 
 const DB_KEY = 'ignite_youth_db';
@@ -62,109 +64,97 @@ export const syncUserProfile = async (userData: Partial<User>) => {
     state.user = { ...state.user, ...userData };
     saveDB(state);
   } catch (e) {
-    console.warn("Firestore sync deferred (possible offline or guest rules):", e);
+    console.warn("Firestore sync deferred:", e);
   }
 };
 
-export const addReflection = async (reflectionData: Partial<Reflection>) => {
+// --- SISTEMA DE NOTIFICACIONES FIRESTORE ---
+
+export const addNotification = async (title: string, message: string, type: 'info' | 'award' | 'event' = 'info') => {
   const state = loadDB();
-  const newRef = {
-    userId: auth.currentUser?.uid || state.user.id,
-    userName: state.user.name,
-    userPhoto: state.user.photoUrl,
-    text: reflectionData.text || '',
-    verseReference: reflectionData.verseReference || 'RVR1960',
+  const uid = auth.currentUser?.uid;
+
+  const newNotif = {
+    title,
+    message,
     timestamp: Timestamp.now(),
-    likes: 0
+    read: false,
+    type
   };
 
-  try {
-    await addDoc(collection(db, "reflections"), newRef);
-    addFEPoints(50, 'Compartir reflexión');
-  } catch (e) {
-    console.error("Error al guardar reflexión:", e);
+  // Guardar en Firestore si hay sesión activa
+  if (uid) {
+    try {
+      const notifsCol = collection(db, "users", uid, "notifications");
+      await addDoc(notifsCol, newNotif);
+    } catch (e) {
+      console.error("Error guardando notificación en Firestore:", e);
+    }
+  }
+
+  // Notificación de sistema local (Push)
+  if (state.user.notificationsEnabled) {
+    notificationService.sendLocalNotification(title, message, true);
   }
 };
 
-export const addPrayerRequest = async (data: { text: string, category: string }) => {
-  const state = loadDB();
-  const newReq = {
-    userId: auth.currentUser?.uid || state.user.id,
-    userName: state.user.name,
-    userPhoto: state.user.photoUrl,
-    request: data.text,
-    category: data.category,
-    createdAt: Timestamp.now(),
-    prayersCount: 0,
-    prayers: []
-  };
+export const subscribeToNotifications = (callback: (notifs: Notification[]) => void) => {
+  const uid = auth.currentUser?.uid;
+  if (!uid) return () => {};
 
-  try {
-    await addDoc(collection(db, "prayers"), newReq);
-    addFEPoints(30, 'Pedir oración');
-  } catch (e) {
-    console.error("Error al guardar petición:", e);
-  }
+  const q = query(
+    collection(db, "users", uid, "notifications"),
+    orderBy("timestamp", "desc"),
+    limit(30)
+  );
+
+  return onSnapshot(q, (snapshot) => {
+    const notifs = snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        title: data.title,
+        message: data.message,
+        read: data.read,
+        type: data.type,
+        time: data.timestamp ? new Date(data.timestamp.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Ahora'
+      };
+    }) as Notification[];
+    
+    const state = loadDB();
+    state.notifications = notifs;
+    saveDB(state);
+    callback(notifs);
+  });
 };
 
-export const joinPrayer = async (requestId: string) => {
-  const state = loadDB();
-  const uid = auth.currentUser?.uid || state.user.id;
+export const markNotificationsRead = async () => {
+  const uid = auth.currentUser?.uid;
   if (!uid) return;
 
-  const prayerRef = doc(db, "prayers", requestId);
   try {
-    await updateDoc(prayerRef, {
-      prayers: arrayUnion(uid),
-      prayersCount: increment(1)
+    const q = query(
+      collection(db, "users", uid, "notifications"),
+      where("read", "==", false)
+    );
+    const snapshot = await getDocs(q);
+    const batch = writeBatch(db);
+    
+    snapshot.docs.forEach(d => {
+      batch.update(d.ref, { read: true });
     });
-    addNotification('Guerrero en Acción', `Te uniste en oración`, 'info');
-    feedback.playSuccess();
+    
+    await batch.commit();
+    
+    const state = loadDB();
+    state.notifications = state.notifications.map(n => ({ ...n, read: true }));
+    saveDB(state);
   } catch (e) {
-    console.error("Error al unirse a oración:", e);
+    console.error("Error al marcar como leídas:", e);
   }
 };
 
-export const likeReflection = async (id: string) => {
-  try {
-    const refDoc = doc(db, "reflections", id);
-    await updateDoc(refDoc, { likes: increment(1) });
-  } catch (e) {
-    console.error("Error al dar like:", e);
-  }
-};
-
-export const subscribeToReflections = (callback: (data: Reflection[]) => void) => {
-  const q = query(collection(db, "reflections"), orderBy("timestamp", "desc"), limit(50));
-  return onSnapshot(q, (snapshot) => {
-    const reflections = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      timestamp: (doc.data().timestamp as Timestamp).toDate().toISOString()
-    })) as Reflection[];
-    
-    const state = loadDB();
-    state.reflections = reflections;
-    saveDB(state);
-    callback(reflections);
-  }, (err) => console.warn("Reflection subscribe error:", err));
-};
-
-export const subscribeToPrayers = (callback: (data: PrayerRequest[]) => void) => {
-  const q = query(collection(db, "prayers"), orderBy("createdAt", "desc"), limit(50));
-  return onSnapshot(q, (snapshot) => {
-    const prayers = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      createdAt: (doc.data().createdAt as Timestamp).toDate().toISOString()
-    })) as PrayerRequest[];
-    
-    const state = loadDB();
-    state.prayerRequests = prayers;
-    saveDB(state);
-    callback(prayers);
-  }, (err) => console.warn("Prayer subscribe error:", err));
-};
+// --- FUNCIONES DE EXPERIENCIA (XP) ---
 
 export const addFEPoints = async (amount: number, reason: string = 'Actividad') => {
   const state = loadDB();
@@ -180,22 +170,6 @@ export const addFEPoints = async (amount: number, reason: string = 'Actividad') 
   saveDB(state);
   if (auth.currentUser) {
     await syncUserProfile({ points: state.user.points, level: state.user.level });
-  }
-};
-
-export const addNotification = (title: string, message: string, type: 'info' | 'award' | 'event' = 'info') => {
-  const state = loadDB();
-  state.notifications.unshift({
-    id: Date.now().toString() + Math.random(),
-    title,
-    message,
-    time: 'Ahora',
-    read: false,
-    type
-  });
-  saveDB(state);
-  if (state.user.notificationsEnabled) {
-    notificationService.sendLocalNotification(title, message, true);
   }
 };
 
@@ -224,12 +198,6 @@ export const updateUser = (updater: (u: User) => User) => {
   syncUserProfile(state.user);
 };
 
-export const markNotificationsRead = () => {
-  const state = loadDB();
-  state.notifications = state.notifications.map(n => ({ ...n, read: true }));
-  saveDB(state);
-};
-
 export const toggleFavorite = (verse: BibleVerse) => {
   const state = loadDB();
   const index = state.user.favorites.findIndex(f => f.book === verse.book && f.chapter === verse.chapter && f.verse === verse.verse);
@@ -237,20 +205,6 @@ export const toggleFavorite = (verse: BibleVerse) => {
   else state.user.favorites.push(verse);
   saveDB(state);
   syncUserProfile({ favorites: state.user.favorites });
-};
-
-export const getCachedChapter = (book: string, chapter: number) => {
-  const state = loadDB();
-  return state.bibleCache?.find(c => c.book === book && c.chapter === chapter)?.verses;
-};
-
-export const saveChapterToCache = (book: string, chapter: number, verses: BibleVerse[]) => {
-  const state = loadDB();
-  if (!state.bibleCache) state.bibleCache = [];
-  const index = state.bibleCache.findIndex(c => c.book === book && c.chapter === chapter);
-  if (index >= 0) state.bibleCache[index].verses = verses;
-  else state.bibleCache.push({ book, chapter, verses });
-  saveDB(state);
 };
 
 export const addGoal = (goal: Partial<Goal>) => {
@@ -281,14 +235,11 @@ export const updateGoalProgress = (id: string, amount: number) => {
   if (goal.progress >= goal.total) {
     goal.progress = goal.total;
     goal.completed = true;
-    
     const xpRewards: Record<string, number> = { 'Bronce': 100, 'Plata': 350, 'Oro': 1000 };
     const reward = xpRewards[goal.type] || 50;
-    
     addFEPoints(reward, `Meta cumplida: ${goal.title}`);
     addNotification('¡Misión Cumplida!', `Has completado "${goal.title}" y ganado ${reward} XP`, 'award');
   }
-  
   saveDB(state);
 };
 
@@ -309,6 +260,115 @@ export const togglePlaylistShared = (id: string) => {
   }
 };
 
+export const addReflection = async (reflectionData: Partial<Reflection>) => {
+  const state = loadDB();
+  const newRef = {
+    userId: auth.currentUser?.uid || state.user.id,
+    userName: state.user.name,
+    userPhoto: state.user.photoUrl,
+    text: reflectionData.text || '',
+    verseReference: reflectionData.verseReference || 'RVR1960',
+    timestamp: Timestamp.now(),
+    likes: 0
+  };
+  try {
+    await addDoc(collection(db, "reflections"), newRef);
+    addFEPoints(50, 'Compartir reflexión');
+  } catch (e) {
+    console.error("Error saving reflection:", e);
+  }
+};
+
+export const likeReflection = async (id: string) => {
+  try {
+    const refDoc = doc(db, "reflections", id);
+    await updateDoc(refDoc, { likes: increment(1) });
+  } catch (e) {
+    console.error("Error liking reflection:", e);
+  }
+};
+
+export const subscribeToReflections = (callback: (data: Reflection[]) => void) => {
+  const q = query(collection(db, "reflections"), orderBy("timestamp", "desc"), limit(50));
+  return onSnapshot(q, (snapshot) => {
+    const reflections = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      timestamp: (doc.data().timestamp as Timestamp).toDate().toISOString()
+    })) as Reflection[];
+    const state = loadDB();
+    state.reflections = reflections;
+    saveDB(state);
+    callback(reflections);
+  });
+};
+
+export const addPrayerRequest = async (data: { text: string, category: string }) => {
+  const state = loadDB();
+  const newReq = {
+    userId: auth.currentUser?.uid || state.user.id,
+    userName: state.user.name,
+    userPhoto: state.user.photoUrl,
+    request: data.text,
+    category: data.category,
+    createdAt: Timestamp.now(),
+    prayersCount: 0,
+    prayers: [],
+    status: 'active'
+  };
+  try {
+    await addDoc(collection(db, "prayers"), newReq);
+    addFEPoints(30, 'Pedir oración');
+  } catch (e) {
+    console.error("Error saving prayer:", e);
+  }
+};
+
+export const joinPrayer = async (requestId: string) => {
+  const state = loadDB();
+  const uid = auth.currentUser?.uid || state.user.id;
+  const prayerRef = doc(db, "prayers", requestId);
+  try {
+    await updateDoc(prayerRef, {
+      prayers: arrayUnion(uid),
+      prayersCount: increment(1)
+    });
+    addNotification('Guerrero en Acción', `Te uniste en oración`, 'info');
+    feedback.playSuccess();
+  } catch (e) {
+    console.error("Error joining prayer:", e);
+  }
+};
+
+export const updatePrayerStatus = async (requestId: string, status: 'active' | 'answered') => {
+  try {
+    const prayerRef = doc(db, "prayers", requestId);
+    await updateDoc(prayerRef, { status });
+    if (status === 'answered') {
+      addFEPoints(100, 'Testimonio de oración respondida');
+      addNotification('¡Gloria a Dios!', 'Tu petición ha sido marcada como respondida.', 'award');
+      feedback.playSuccess();
+    }
+  } catch (e) {
+    console.error("Error updating prayer status:", e);
+  }
+};
+
+export const subscribeToPrayers = (callback: (data: PrayerRequest[]) => void) => {
+  const q = query(collection(db, "prayers"), orderBy("createdAt", "desc"), limit(50));
+  return onSnapshot(q, (snapshot) => {
+    const prayers = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      createdAt: (doc.data().createdAt as Timestamp).toDate().toISOString()
+    })) as PrayerRequest[];
+    const state = loadDB();
+    state.prayerRequests = prayers;
+    saveDB(state);
+    callback(prayers);
+  });
+};
+
 export const fetchGlobalLeaderboard = () => {
   const state = loadDB();
   return [
@@ -317,4 +377,18 @@ export const fetchGlobalLeaderboard = () => {
     { id: '3', name: 'Discípulo Digital', points: 800, level: 2 },
     { id: '4', name: 'Heraldo Ignite', points: 450, level: 1 }
   ].sort((a, b) => b.points - a.points);
+};
+
+export const getCachedChapter = (book: string, chapter: number) => {
+  const state = loadDB();
+  return state.bibleCache?.find(c => c.book === book && c.chapter === chapter)?.verses;
+};
+
+export const saveChapterToCache = (book: string, chapter: number, verses: BibleVerse[]) => {
+  const state = loadDB();
+  if (!state.bibleCache) state.bibleCache = [];
+  const index = state.bibleCache.findIndex(c => c.book === book && c.chapter === chapter);
+  if (index >= 0) state.bibleCache[index].verses = verses;
+  else state.bibleCache.push({ book, chapter, verses });
+  saveDB(state);
 };

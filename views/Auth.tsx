@@ -9,7 +9,7 @@ import {
   signInAnonymously,
   updateProfile 
 } from "firebase/auth";
-import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 import { saveDB, loadDB } from '../store/db';
 import { INITIAL_USER } from '../constants';
 
@@ -73,23 +73,28 @@ export default function Auth({ onLogin }: { onLogin: () => void }) {
       const userCredential = await signInAnonymously(auth);
       const uid = userCredential.user.uid;
       
-      // Verificar si el invitado ya tenía un perfil en Firestore
       const userDocRef = doc(db, "users", uid);
-      const userDoc = await getDoc(userDocRef);
-      
       let userData;
-      if (!userDoc.exists()) {
-        // Crear perfil base para el invitado
-        userData = { 
-          ...INITIAL_USER, 
-          id: uid, 
-          name: 'Invitado Sabio',
-          isGuest: true,
-          lastLoginDate: new Date().toISOString()
-        };
-        await setDoc(userDocRef, userData);
-      } else {
-        userData = userDoc.data();
+
+      try {
+        // Intentamos obtener el documento, pero si falla por offline, no lanzamos error fatal
+        const userDoc = await getDoc(userDocRef);
+        if (userDoc.exists()) {
+          userData = userDoc.data();
+        } else {
+          userData = { 
+            ...INITIAL_USER, 
+            id: uid, 
+            name: 'Invitado Sabio',
+            isGuest: true,
+            lastLoginDate: new Date().toISOString()
+          };
+          // Intentamos guardarlo, pero Firestore lo encolará si estamos offline
+          setDoc(userDocRef, userData).catch(e => console.warn("Guardado de invitado en cola (offline)"));
+        }
+      } catch (docErr) {
+        console.warn("Error leyendo Firestore, usando perfil local:", docErr);
+        userData = { ...INITIAL_USER, id: uid, name: 'Invitado (Offline)' };
       }
 
       const state = loadDB();
@@ -100,7 +105,7 @@ export default function Auth({ onLogin }: { onLogin: () => void }) {
       onLogin();
     } catch (e: any) {
       console.error("Error en login anónimo:", e);
-      setError('No pudimos abrir la puerta de invitados. Revisa tu conexión.');
+      setError('La puerta está trabada. Revisa tu internet.');
     } finally {
       setIsLoading(false);
     }

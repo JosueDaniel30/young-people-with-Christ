@@ -30,6 +30,7 @@ export interface PrayerRequest {
   createdAt: any;
   prayersCount: number;
   prayers: string[]; // IDs de usuarios que están orando
+  status?: 'active' | 'answered'; // Nuevo campo
 }
 
 export interface Reflection {

@@ -1,13 +1,12 @@
 
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { 
+  initializeFirestore, 
+  persistentLocalCache, 
+  persistentMultipleTabManager 
+} from "firebase/firestore";
 
-/**
- * CONFIGURACIÓN SEGURA:
- * En producción, estas variables se configuran en el panel de control del hosting (Vercel/Netlify/Firebase).
- * Esto evita que las claves sean visibles en el repositorio de código.
- */
 const firebaseConfig = {
   apiKey: process.env.FIREBASE_API_KEY || "AIzaSyBO-TJJYDpnxcP8UOl_XN77g6deesZPono",
   authDomain: "ignite-1847e.firebaseapp.com",
@@ -20,4 +19,10 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-export const db = getFirestore(app);
+
+// Inicializar Firestore con la nueva API de cache persistente (reemplaza enableIndexedDbPersistence)
+export const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({
+    tabManager: persistentMultipleTabManager() // Permite sincronización entre múltiples pestañas
+  })
+});

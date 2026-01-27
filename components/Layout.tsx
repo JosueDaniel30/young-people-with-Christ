@@ -1,9 +1,10 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Home, Book, Trophy, User, Music, Sparkles, Bell, X, Moon, Sun, CloudOff, Database, Waves, MessageSquare, MessageCircle, Zap, Trash2, CheckCircle2 } from 'lucide-react';
-import { loadDB, markNotificationsRead, updateUser } from '../store/db.ts';
+import { Home, Book, Trophy, User, MessageSquare, Waves, Zap, Sun, Moon, Bell, X, CheckCircle2 } from 'lucide-react';
+import { loadDB, markNotificationsRead, updateUser, subscribeToNotifications } from '../store/db.ts';
 import { Notification as NotificationType } from '../types.ts';
 import { feedback } from '../services/audioFeedback.ts';
+import { auth } from '../services/firebaseConfig';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -29,20 +30,48 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
   }, [isDarkMode]);
 
   useEffect(() => {
-    const handleUpdate = () => {
-      const currentState = loadDB();
-      setState(currentState);
-      if (currentState.notifications.length > 0) {
-        const latest = currentState.notifications[0];
-        if (!latest.read && latest.id !== lastToastId.current) {
-          lastToastId.current = latest.id;
-          setActiveToast(latest);
-          setTimeout(() => setActiveToast(null), 4000);
-        }
+    const handleUpdate = () => setState(loadDB());
+    window.addEventListener('ignite_db_update', handleUpdate);
+
+    let unsubscribe: () => void = () => {};
+    
+    const setupNotificationSync = () => {
+      if (auth.currentUser) {
+        unsubscribe = subscribeToNotifications((notifs) => {
+          setState(loadDB());
+          if (notifs.length > 0) {
+            const latest = notifs[0];
+            if (!latest.read && latest.id !== lastToastId.current) {
+              lastToastId.current = latest.id;
+              setActiveToast(latest);
+              setTimeout(() => setActiveToast(null), 5000);
+            }
+          }
+        });
       }
     };
-    window.addEventListener('ignite_db_update', handleUpdate);
-    return () => window.removeEventListener('ignite_db_update', handleUpdate);
+
+    // Escuchar cambios de autenticación para activar la sincronización
+    const authUnsubscribe = auth.onAuthStateChanged((user) => {
+      if (user) {
+        setupNotificationSync();
+      } else {
+        unsubscribe();
+      }
+    });
+
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('ignite_db_update', handleUpdate);
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+      unsubscribe();
+      authUnsubscribe();
+    };
   }, []);
 
   const toggleTheme = () => {
@@ -56,9 +85,9 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
     setShowNotifications(true);
   };
 
-  const handleMarkAsRead = () => {
+  const handleMarkAsRead = async () => {
     feedback.playSuccess();
-    markNotificationsRead();
+    await markNotificationsRead();
     setState(loadDB());
   };
 
@@ -67,7 +96,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
     { id: 'bible', icon: Book, color: 'from-orange-500 to-amber-700' },
     { id: 'community', icon: MessageSquare, color: 'from-amber-500 to-yellow-600' },
     { id: 'prayer', icon: Waves, color: 'from-orange-600 to-amber-800' },
-    { id: 'chat', icon: MessageCircle, color: 'from-yellow-500 to-orange-600' },
+    { id: 'goals', icon: Trophy, color: 'from-yellow-500 to-orange-600' },
     { id: 'profile', icon: User, color: 'from-amber-700 to-orange-900' },
   ];
 
@@ -76,11 +105,10 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
   return (
     <div className={`min-h-[100dvh] pb-36 transition-colors duration-500 ${isDarkMode ? 'bg-[#111111] text-amber-50' : 'bg-[#fffcf8] text-amber-950'}`}>
       
-      {/* Toast de Notificación Rápida */}
       {activeToast && (
         <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[1000] w-[92%] max-w-md animate-in slide-in-from-top duration-500">
           <div className={`p-5 rounded-3xl border shadow-2xl flex items-center gap-4 backdrop-blur-3xl ${isDarkMode ? 'bg-[#1a1a1a]/90 border-amber-500/40 shadow-amber-900/40' : 'bg-white/90 border-amber-100 shadow-amber-200'}`}>
-            <div className="p-3 bg-gradient-to-br from-amber-600 to-orange-600 text-white rounded-2xl shadow-lg ring-2 ring-white/10">
+            <div className="p-3 bg-gradient-to-br from-amber-600 to-orange-600 text-white rounded-2xl shadow-lg">
               <Zap className="w-5 h-5 fill-current" />
             </div>
             <div className="flex-1 min-w-0">
@@ -94,13 +122,10 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
         </div>
       )}
 
-      {/* Panel Lateral de Notificaciones (Drawer) */}
       <div className={`fixed inset-0 z-[1000] transition-opacity duration-500 ${showNotifications ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
         <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowNotifications(false)} />
         <div className={`absolute right-0 top-0 h-full w-full max-w-md transform transition-transform duration-500 ease-out p-6 ${showNotifications ? 'translate-x-0' : 'translate-x-full'}`}>
           <div className={`h-full w-full rounded-[3rem] shadow-2xl flex flex-col overflow-hidden border ${isDarkMode ? 'bg-[#1a1a1a] border-amber-500/20 shadow-black/80' : 'bg-white border-amber-100'}`}>
-            
-            {/* Header del Panel */}
             <div className="p-8 flex justify-between items-center border-b border-amber-500/10">
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-amber-500/10 rounded-2xl text-amber-500">
@@ -116,11 +141,10 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
               </button>
             </div>
 
-            {/* Lista de Notificaciones */}
             <div className="flex-1 overflow-y-auto p-6 space-y-4 scrollbar-hide">
               {state.notifications.length > 0 ? (
                 state.notifications.map((n) => (
-                  <div key={n.id} className={`p-5 rounded-[2rem] border transition-all ${!n.read ? (isDarkMode ? 'bg-amber-500/10 border-amber-500/40' : 'bg-amber-50 border-amber-200') : (isDarkMode ? 'bg-white/5 border-transparent' : 'bg-slate-50 border-transparent opacity-60')}`}>
+                  <div key={n.id} className={`p-5 rounded-[2rem] border transition-all ${!n.read ? (isDarkMode ? 'bg-amber-500/10 border-amber-500/40 shadow-lg shadow-amber-500/5' : 'bg-amber-50 border-amber-200') : (isDarkMode ? 'bg-white/5 border-transparent' : 'bg-slate-50 border-transparent opacity-60')}`}>
                     <div className="flex gap-4">
                       <div className={`shrink-0 w-10 h-10 rounded-xl flex items-center justify-center ${n.type === 'award' ? 'bg-yellow-500 text-white' : 'bg-amber-600 text-white'}`}>
                          {n.type === 'award' ? <Trophy className="w-5 h-5" /> : <Zap className="w-5 h-5 fill-current" />}
@@ -146,7 +170,6 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
               )}
             </div>
 
-            {/* Footer del Panel */}
             {state.notifications.length > 0 && (
               <div className="p-6 border-t border-amber-500/10 bg-amber-500/5">
                 <button 
@@ -164,7 +187,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
       <header className={`sticky top-0 z-50 transition-all safe-pt backdrop-blur-xl border-b ${isDarkMode ? 'bg-[#111111]/80 border-white/5 shadow-2xl shadow-black/40' : 'bg-white/80 border-amber-100 shadow-sm'}`}>
         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-4">
-             <div className="w-10 h-10 bg-gradient-to-br from-amber-600 via-orange-600 to-yellow-600 rounded-2xl flex items-center justify-center p-2.5 shadow-xl shadow-amber-500/30 ring-1 ring-white/10">
+             <div className="w-10 h-10 bg-gradient-to-br from-amber-600 via-orange-600 to-yellow-600 rounded-2xl flex items-center justify-center p-2.5 shadow-xl shadow-amber-500/30">
                <Zap className="w-full h-full text-white fill-current" />
              </div>
              <div className="flex flex-col">

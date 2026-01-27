@@ -1,9 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
-import { Heart, Send, Plus, Clock, ShieldCheck, Flame, Waves, Users, Zap, Loader2 } from 'lucide-react';
-import { loadDB, addPrayerRequest, joinPrayer, subscribeToPrayers } from '../store/db';
+import { Heart, Send, Plus, Clock, ShieldCheck, Flame, Waves, Users, Zap, Loader2, CheckCircle2, Star } from 'lucide-react';
+import { loadDB, addPrayerRequest, joinPrayer, subscribeToPrayers, updatePrayerStatus } from '../store/db';
 import { feedback } from '../services/audioFeedback';
 import { PrayerRequest } from '../types';
+import { auth } from '../services/firebaseConfig';
 
 const PrayerRequests: React.FC<{ refreshState: () => void }> = ({ refreshState }) => {
   const state = loadDB();
@@ -14,6 +15,7 @@ const PrayerRequests: React.FC<{ refreshState: () => void }> = ({ refreshState }
   const [isSyncing, setIsSyncing] = useState(true);
 
   const categories = ['Salud', 'Familia', 'Estudios', 'Provisión', 'Guía', 'Otros'];
+  const currentUserId = auth.currentUser?.uid || state.user.id;
 
   useEffect(() => {
     const unsubscribe = subscribeToPrayers((data) => {
@@ -38,6 +40,12 @@ const PrayerRequests: React.FC<{ refreshState: () => void }> = ({ refreshState }
   const handleJoin = (id: string) => {
     feedback.playClick();
     joinPrayer(id);
+  };
+
+  const handleToggleStatus = (id: string, currentStatus?: string) => {
+    feedback.playClick();
+    const nextStatus = currentStatus === 'answered' ? 'active' : 'answered';
+    updatePrayerStatus(id, nextStatus);
   };
 
   return (
@@ -102,31 +110,78 @@ const PrayerRequests: React.FC<{ refreshState: () => void }> = ({ refreshState }
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {requests.length > 0 ? (
-          requests.map((req) => (
-            <div key={req.id} className={`group p-8 rounded-[3.5rem] border-2 transition-all relative overflow-hidden ${isDarkMode ? 'bg-amber-950/20 border-white/5' : 'bg-white border-amber-50 shadow-xl shadow-amber-100/10'}`}>
-              <div className="flex items-center gap-4 mb-6">
-                <img src={req.userPhoto} className="w-12 h-12 rounded-2xl object-cover border-2 border-amber-500/20" alt="" />
-                <div>
-                  <h4 className="font-black text-sm uppercase text-amber-950 dark:text-amber-50">{req.userName}</h4>
-                  <span className="text-[8px] text-amber-700/40 font-black uppercase">{new Date(req.createdAt).toLocaleString()}</span>
+          requests.map((req) => {
+            const isOwner = req.userId === currentUserId;
+            const isAnswered = req.status === 'answered';
+
+            return (
+              <div 
+                key={req.id} 
+                className={`group p-8 rounded-[3.5rem] border-2 transition-all relative overflow-hidden ${
+                  isAnswered 
+                    ? (isDarkMode ? 'bg-emerald-950/20 border-emerald-500/30' : 'bg-emerald-50 border-emerald-200 shadow-emerald-100')
+                    : (isDarkMode ? 'bg-amber-950/20 border-white/5' : 'bg-white border-amber-50 shadow-xl shadow-amber-100/10')
+                }`}
+              >
+                {isAnswered && (
+                  <div className="absolute top-6 right-8 flex items-center gap-2 px-3 py-1 bg-emerald-500 text-white rounded-full shadow-lg shadow-emerald-500/20 animate-bounce">
+                    <Star className="w-3 h-3 fill-current" />
+                    <span className="text-[8px] font-black uppercase tracking-widest">Respondida</span>
+                  </div>
+                )}
+
+                <div className="flex items-center gap-4 mb-6">
+                  <img src={req.userPhoto} className="w-12 h-12 rounded-2xl object-cover border-2 border-amber-500/20" alt="" />
+                  <div>
+                    <h4 className="font-black text-sm uppercase text-amber-950 dark:text-amber-50">{req.userName}</h4>
+                    <span className="text-[8px] text-amber-700/40 font-black uppercase">{new Date(req.createdAt).toLocaleString()}</span>
+                  </div>
+                </div>
+
+                <p className={`text-xl font-medium italic mb-8 ${isDarkMode ? 'text-amber-100/80' : 'text-amber-900/80'} ${isAnswered ? 'text-emerald-900 dark:text-emerald-100' : ''}`}>
+                  "{req.request}"
+                </p>
+
+                <div className="flex items-center justify-between pt-6 border-t border-amber-500/10">
+                  <div className="flex items-center gap-3">
+                    <Users className="w-4 h-4 text-amber-700/40" />
+                    <span className="text-xs font-black text-amber-600">{req.prayersCount} Unidoss</span>
+                  </div>
+
+                  <div className="flex gap-2">
+                    {isOwner ? (
+                      <button 
+                        onClick={() => handleToggleStatus(req.id, req.status)}
+                        className={`flex items-center gap-3 px-6 py-3 rounded-2xl font-black uppercase text-[9px] transition-all shadow-md active:scale-95 ${
+                          isAnswered 
+                            ? 'bg-amber-600 text-white' 
+                            : 'bg-emerald-600 text-white shadow-emerald-600/20'
+                        }`}
+                      >
+                        {isAnswered ? <Flame className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
+                        {isAnswered ? 'Volver a Orar' : '¡Respondida!'}
+                      </button>
+                    ) : (
+                      <button 
+                        onClick={() => handleJoin(req.id)}
+                        disabled={req.prayers?.includes(currentUserId) || isAnswered}
+                        className={`flex items-center gap-3 px-6 py-3 rounded-2xl font-black uppercase text-[9px] transition-all shadow-md active:scale-95 ${
+                          req.prayers?.includes(currentUserId) 
+                            ? 'bg-emerald-500 text-white shadow-emerald-500/20' 
+                            : isAnswered 
+                              ? 'bg-slate-100 dark:bg-white/5 text-slate-400 opacity-50 cursor-not-allowed'
+                              : 'bg-amber-600 text-white shadow-amber-600/20'
+                        }`}
+                      >
+                        <Flame className="w-4 h-4" /> 
+                        {req.prayers?.includes(currentUserId) ? 'Estoy Orando' : isAnswered ? 'Victoria' : 'Unirme'}
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
-              <p className={`text-xl font-medium italic mb-8 ${isDarkMode ? 'text-amber-100/80' : 'text-amber-900/80'}`}>"{req.request}"</p>
-              <div className="flex items-center justify-between pt-6 border-t border-amber-500/10">
-                <div className="flex items-center gap-3">
-                  <Users className="w-4 h-4 text-amber-700/40" />
-                  <span className="text-xs font-black text-amber-600">{req.prayersCount} Unidoss</span>
-                </div>
-                <button 
-                  onClick={() => handleJoin(req.id)}
-                  disabled={req.prayers?.includes(state.user.id)}
-                  className={`flex items-center gap-3 px-6 py-3 rounded-2xl font-black uppercase text-[9px] transition-all shadow-md active:scale-95 ${req.prayers?.includes(state.user.id) ? 'bg-emerald-500 text-white shadow-emerald-500/20' : 'bg-amber-600 text-white shadow-amber-600/20'}`}
-                >
-                  <Flame className="w-4 h-4" /> {req.prayers?.includes(state.user.id) ? 'Estoy Orando' : 'Unirme'}
-                </button>
-              </div>
-            </div>
-          ))
+            );
+          })
         ) : (
           <div className="col-span-full py-40 text-center">
              <ShieldCheck className="w-12 h-12 text-amber-200 mx-auto mb-4" />
