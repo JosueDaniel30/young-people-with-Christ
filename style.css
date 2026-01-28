@@ -1,0 +1,91 @@
+
+/* 
+  Ignite Youth - Custom Design System
+  Estilos base para complementar Tailwind CDN.
+*/
+
+:root {
+  --bg-dark: #111111;
+  --bg-light: #fffcf8;
+  --brand-color: #d97706;
+}
+
+/* Forzar renderizado correcto */
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+}
+
+body {
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: contain;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Efecto Glassmorphism */
+.glass {
+  background: rgba(255, 255, 255, 0.7) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(217, 119, 6, 0.1) !important;
+}
+
+.dark .glass {
+  background: rgba(20, 20, 20, 0.6) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+/* Mesh Gradient Dinámico */
+.mesh-gradient {
+  background-color: var(--bg-light);
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(217, 119, 6, 0.08) 0, transparent 50%), 
+    radial-gradient(at 100% 0%, rgba(180, 83, 9, 0.08) 0, transparent 50%) !important;
+  background-attachment: fixed;
+}
+
+.dark .mesh-gradient {
+  background-color: var(--bg-dark);
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(217, 119, 6, 0.1) 0, transparent 50%), 
+    radial-gradient(at 100% 0%, rgba(180, 83, 9, 0.08) 0, transparent 50%) !important;
+  background-attachment: fixed;
+}
+
+/* Utilidades de Scroll */
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Ajuste para Notch en iOS */
+.safe-pt {
+  padding-top: env(safe-area-inset-top);
+}
+
+/* Animaciones Estándar */
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideInFromBottom { 
+  from { transform: translateY(1rem); opacity: 0; } 
+  to { transform: translateY(0); opacity: 1; } 
+}
+
+.animate-in {
+  animation: fadeIn 0.5s ease-out forwards;
+}
+
+.fade-in {
+  animation: fadeIn 0.5s ease-out forwards;
+}
+
+.slide-in-from-bottom {
+  animation: slideInFromBottom 0.5s ease-out forwards;
+}
+
+/* Fix para clases específicas de Tailwind que a veces fallan en CDN */
+.bg-clip-text {
+  -webkit-background-clip: text;
+  background-clip: text;
+}

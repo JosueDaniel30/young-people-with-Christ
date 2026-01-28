@@ -6,39 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Ignite Youth - Jóvenes con Cristo</title>
     
-    <!-- PWA Primary Meta Tags -->
-    <meta name="theme-color" content="#d97706">
-    <meta name="msapplication-TileColor" content="#d97706">
-    <meta name="description" content="Ignite Youth - Sabiduría y Comunidad para la nueva generación.">
-    
-    <!-- iOS / Apple Specific Meta Tags -->
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Ignite">
-    <link rel="apple-touch-icon" href="https://api.dicebear.com/7.x/shapes/png?seed=Zap&backgroundColor=d97706&width=180&height=180&v=2">
-    
-    <!-- Favicon and Manifest -->
-    <link rel="icon" type="image/png" sizes="32x32" href="https://api.dicebear.com/7.x/shapes/png?seed=Zap&backgroundColor=d97706&width=32&height=32&v=2">
-    <link rel="manifest" href="manifest.json">
-    
-    <script type="importmap">
-{
-  "imports": {
-    "react": "https://esm.sh/react@^19.2.3",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
-    "react/": "https://esm.sh/react@^19.2.3/",
-    "@google/genai": "https://esm.sh/@google/genai@^1.38.0",
-    "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
-    "recharts": "https://esm.sh/recharts@^3.6.0",
-    "firebase/": "https://esm.sh/firebase@^12.8.0/",
-    "vite": "https://esm.sh/vite@^7.3.1"
-  }
-}
-</script>
-
+    <!-- 1. Tailwind CSS CDN (Primero para evitar FOUC) -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
     <script>
       tailwind.config = {
         darkMode: 'class',
@@ -57,95 +26,49 @@
                 800: '#92400e',
                 900: '#78350f',
                 950: '#451a03',
-              },
+              }
             },
             fontFamily: {
               sans: ['Plus Jakarta Sans', 'sans-serif'],
               heading: ['Space Grotesk', 'sans-serif'],
             },
             animation: {
-              'bounce-slow': 'bounce-slow 4s infinite ease-in-out',
-              'gradient-xy': 'gradient-xy 6s ease infinite',
+              'bounce-slow': 'bounce 4s infinite ease-in-out',
               'spin-slow': 'spin 8s linear infinite',
-              'shake': 'shake 0.5s cubic-bezier(.36,.07,.19,.97) both',
-            },
-            keyframes: {
-              'bounce-slow': {
-                '0%, 100%': { transform: 'translateY(-5%)' },
-                '50%': { transform: 'translateY(5%)' },
-              },
-              'gradient-xy': {
-                '0%, 100%': { 'background-size': '400% 400%', 'background-position': 'left center' },
-                '50%': { 'background-size': '400% 400%', 'background-position': 'right center' }
-              },
-              'shake': {
-                '10%, 90%': { transform: 'translate3d(-1px, 0, 0)' },
-                '20%, 80%': { transform: 'translate3d(2px, 0, 0)' },
-                '30%, 50%, 70%': { transform: 'translate3d(-4px, 0, 0)' },
-                '40%, 60%': { transform: 'translate3d(4px, 0, 0)' }
-              }
             }
           }
         }
       }
     </script>
 
-    <style>
-        :root {
-            --brand-primary: #d97706;
-            --bg-light: #fffcf8;
-            --bg-dark: #111111; /* Negro más claro como se solicitó */
-        }
+    <!-- 2. Estilos personalizados -->
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
-        .safe-pb { padding-bottom: env(safe-area-inset-bottom); }
-        .safe-pt { padding-top: env(safe-area-inset-top); }
-
-        html { 
-            background-color: var(--bg-dark); 
-            transition: background-color 0.3s ease;
-        }
-        
-        body { 
-            background-color: var(--bg-light);
-            -webkit-tap-highlight-color: transparent;
-            overscroll-behavior-y: contain;
-            transition: background-color 0.3s ease;
-            min-height: 100dvh;
-            user-select: none;
-        }
-
-        html.dark body {
-            background-color: var(--bg-dark);
-            color: #fef3c7;
-        }
-        
-        .glass {
-            background: rgba(255, 256, 255, 0.7);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(217, 119, 6, 0.1);
-        }
-        .dark .glass {
-            background: rgba(20, 20, 20, 0.6); /* Ajustado para el nuevo fondo */
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(217, 119, 6, 0.15);
-        }
-
-        .mesh-gradient {
-            background-image: radial-gradient(at 0% 0%, rgba(217, 119, 6, 0.08) 0, transparent 50%), 
-                              radial-gradient(at 100% 0%, rgba(180, 83, 9, 0.08) 0, transparent 50%);
-        }
-        .dark .mesh-gradient {
-            background-image: radial-gradient(at 0% 0%, rgba(217, 119, 6, 0.1) 0, transparent 50%), 
-                              radial-gradient(at 100% 0%, rgba(180, 83, 9, 0.08) 0, transparent 50%);
-        }
-
-        .scrollbar-hide::-webkit-scrollbar { display: none; }
-        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
-    </style>
+    <!-- 3. PWA Meta Tags -->
+    <meta name="theme-color" content="#d97706">
+    <meta name="description" content="Ignite Youth - Comunidad espiritual y Biblia RVR1960.">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="https://api.dicebear.com/7.x/shapes/png?seed=Zap&backgroundColor=d97706&width=180&height=180&v=2">
+    <link rel="icon" type="image/png" sizes="32x32" href="https://api.dicebear.com/7.x/shapes/png?seed=Zap&backgroundColor=d97706&width=32&height=32&v=2">
+    <link rel="manifest" href="manifest.json">
+    
+    <script type="importmap">
+    {
+      "imports": {
+        "react": "https://esm.sh/react@^19.2.3",
+        "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+        "react/": "https://esm.sh/react@^19.2.3/",
+        "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
+        "recharts": "https://esm.sh/recharts@^3.6.0",
+        "firebase/": "https://esm.sh/firebase@^12.8.0/",
+        "vite": "https://esm.sh/vite@^7.3.1"
+      }
+    }
+    </script>
 </head>
-<body class="mesh-gradient min-h-[100dvh]">
+<body class="mesh-gradient min-h-[100dvh] font-sans overflow-x-hidden">
     <div id="root"></div>
     <script type="module" src="./index.tsx"></script>
 </body>

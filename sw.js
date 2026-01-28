@@ -1,10 +1,10 @@
 
-const CACHE_NAME = 'ignite-pwa-v3';
+const CACHE_NAME = 'ignite-pwa-v4'; // Incrementamos versión
 const STATIC_ASSETS = [
   './',
   './index.html',
-  './manifest.json',
-  'https://cdn.tailwindcss.com'
+  './style.css',
+  './manifest.json'
 ];
 
 self.addEventListener('install', (event) => {
@@ -31,23 +31,18 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
-  if (!url.protocol.startsWith('http')) return;
   
-  // Ignorar peticiones de Firebase
-  if (
-    url.hostname.includes('googleapis.com') || 
-    url.hostname.includes('firebaseio.com')
-  ) {
+  // No cachear peticiones externas (CDNs, Firebase) para evitar conflictos de origen
+  if (url.hostname !== location.hostname) {
     return;
   }
   
   if (event.request.method !== 'GET') return;
 
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) return cachedResponse;
-
-      return fetch(event.request).then((networkResponse) => {
+    fetch(event.request)
+      .then((networkResponse) => {
+        // Estrategia: Network First para archivos estáticos locales
         if (networkResponse && networkResponse.status === 200) {
           const responseClone = networkResponse.clone();
           caches.open(CACHE_NAME).then((cache) => {
@@ -55,11 +50,14 @@ self.addEventListener('fetch', (event) => {
           });
         }
         return networkResponse;
-      }).catch(() => {
-        if (event.request.mode === 'navigate') {
-          return caches.match('./index.html');
-        }
-      });
-    })
+      })
+      .catch(() => {
+        return caches.match(event.request).then((cachedResponse) => {
+          if (cachedResponse) return cachedResponse;
+          if (event.request.mode === 'navigate') {
+            return caches.match('./index.html');
+          }
+        });
+      })
   );
 });

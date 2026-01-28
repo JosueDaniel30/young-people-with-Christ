@@ -3,31 +3,39 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Función para verificar si el usuario está autenticado (incluye anónimos)
+    // Función para verificar si el usuario está autenticado
     function isSignedIn() {
       return request.auth != null;
     }
 
-    // Reglas para la colección de Usuarios
+    // Perfiles de Usuario: Solo el dueño escribe, todos los autenticados leen
     match /users/{userId} {
       allow read: if isSignedIn();
       allow write: if request.auth.uid == userId;
     }
 
-    // Reglas para el Muro de Vida (Reflexiones)
+    // Reflexiones de la Comunidad
     match /reflections/{docId} {
       allow read: if isSignedIn();
       allow create: if isSignedIn();
       allow update: if isSignedIn() && (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes']));
-      allow delete: if request.auth.uid == resource.data.userId;
+      allow delete: if isSignedIn() && request.auth.uid == resource.data.userId;
     }
 
-    // Reglas para el Altar de Oración
-    match /prayers/{docId} {
+    // Altar de Oración
+    match /prayerRequests/{docId} {
       allow read: if isSignedIn();
       allow create: if isSignedIn();
-      allow update: if isSignedIn(); // Permitimos actualizar para unirse en oración (incrementar contador)
-      allow delete: if request.auth.uid == resource.data.userId;
+      allow update: if isSignedIn(); 
+      allow delete: if isSignedIn() && request.auth.uid == resource.data.userId;
+    }
+
+    // Lecciones de Discipulado
+    match /lessons/{docId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes']));
+      allow delete: if isSignedIn() && request.auth.uid == resource.data.userId;
     }
   }
 }

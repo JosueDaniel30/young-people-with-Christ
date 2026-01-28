@@ -7,6 +7,7 @@ import {
   persistentMultipleTabManager 
 } from "firebase/firestore";
 
+// Configuración de Ignite Youth Firebase
 const firebaseConfig = {
   apiKey: process.env.FIREBASE_API_KEY || "AIzaSyBO-TJJYDpnxcP8UOl_XN77g6deesZPono",
   authDomain: "ignite-1847e.firebaseapp.com",
@@ -20,9 +21,9 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 
-// Inicializar Firestore con la nueva API de cache persistente (reemplaza enableIndexedDbPersistence)
+// Inicializar Firestore con persistencia avanzada para una experiencia offline suave
 export const db = initializeFirestore(app, {
   localCache: persistentLocalCache({
-    tabManager: persistentMultipleTabManager() // Permite sincronización entre múltiples pestañas
+    tabManager: persistentMultipleTabManager() 
   })
 });
