@@ -6,6 +6,7 @@ export interface User {
   photoUrl: string;
   points: number;
   streak: number;
+  totalLogins?: number; // Nueva métrica para insignias de frecuencia
   level: number;
   lastLoginDate: string; 
   badges: Badge[];
@@ -18,6 +19,23 @@ export interface User {
     community: boolean;
   };
   xpHistory?: { date: string; points: number }[]; 
+}
+
+export interface Lesson {
+  id: string;
+  userId: string;
+  userName: string;
+  userPhoto: string;
+  title: string;
+  content: string;
+  category: string;
+  timestamp: string;
+  likes: number;
+  attachment?: {
+    name: string;
+    type: string;
+    data: string; // Base64 representation for demo/local storage purposes
+  };
 }
 
 export interface PrayerRequest {
@@ -68,6 +86,7 @@ export interface Badge {
 export interface Goal {
   id: string;
   title: string;
+  description?: string;
   type: 'Bronce' | 'Plata' | 'Oro';
   period: 'Diario' | 'Semanal' | 'Mensual';
   progress: number;

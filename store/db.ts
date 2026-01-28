@@ -1,394 +1,196 @@
 
-import { User, Goal, Badge, Playlist, Notification, BibleVerse, Reflection, PrayerRequest } from '../types';
-import { INITIAL_USER, INITIAL_GOALS, PLAYLISTS } from '../constants';
+import { User, Goal, Badge, Playlist, Notification, BibleVerse, Reflection, PrayerRequest, Lesson } from '../types';
+import { INITIAL_USER, INITIAL_GOALS, PLAYLISTS, BADGES } from '../constants';
 import { feedback } from '../services/audioFeedback';
-import { notificationService } from '../services/notificationService';
 import { db, auth } from '../services/firebaseConfig';
 import { 
-  doc, 
-  setDoc, 
-  updateDoc, 
-  collection, 
-  addDoc, 
-  query, 
-  orderBy, 
-  limit, 
-  onSnapshot,
-  increment,
-  arrayUnion,
-  Timestamp,
-  where,
-  getDocs,
-  writeBatch
+  doc, setDoc, updateDoc, collection, addDoc, query, orderBy, limit, 
+  onSnapshot, increment, arrayUnion, Timestamp, where, getDocs, writeBatch 
 } from "firebase/firestore";
 
 const DB_KEY = 'ignite_youth_db';
 const UPDATE_EVENT = 'ignite_db_update';
 
-interface AppState {
-  user: User;
-  goals: Goal[];
-  playlists: Playlist[];
-  notifications: Notification[];
-  reflections: Reflection[];
-  prayerRequests: PrayerRequest[];
-  bibleCache: any[];
-}
-
-export const loadDB = (): AppState => {
+export const loadDB = () => {
   const data = localStorage.getItem(DB_KEY);
   if (!data) return { 
-    user: INITIAL_USER, 
-    goals: INITIAL_GOALS, 
-    playlists: PLAYLISTS, 
-    notifications: [], 
-    reflections: [], 
-    prayerRequests: [],
-    bibleCache: [] 
+    user: INITIAL_USER, goals: INITIAL_GOALS, playlists: PLAYLISTS, 
+    notifications: [], reflections: [], prayerRequests: [], lessons: [], bibleCache: [] 
   };
   return JSON.parse(data);
 };
 
-export const saveDB = (state: AppState) => {
+export const saveDB = (state: any) => {
   localStorage.setItem(DB_KEY, JSON.stringify(state));
   window.dispatchEvent(new CustomEvent(UPDATE_EVENT));
 };
 
-export const syncUserProfile = async (userData: Partial<User>) => {
-  if (!auth.currentUser) return;
-  try {
-    const userRef = doc(db, "users", auth.currentUser.uid);
-    await setDoc(userRef, userData, { merge: true });
-    
-    const state = loadDB();
-    state.user = { ...state.user, ...userData };
-    saveDB(state);
-  } catch (e) {
-    console.warn("Firestore sync deferred:", e);
-  }
-};
-
-// --- SISTEMA DE NOTIFICACIONES FIRESTORE ---
-
-export const addNotification = async (title: string, message: string, type: 'info' | 'award' | 'event' = 'info') => {
+export const addNotification = (title: string, message: string, type: 'info' | 'award' | 'event' = 'info') => {
   const state = loadDB();
-  const uid = auth.currentUser?.uid;
-
-  const newNotif = {
+  const newNotif: Notification = {
+    id: Date.now().toString(),
     title,
     message,
-    timestamp: Timestamp.now(),
+    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     read: false,
     type
   };
-
-  // Guardar en Firestore si hay sesión activa
-  if (uid) {
-    try {
-      const notifsCol = collection(db, "users", uid, "notifications");
-      await addDoc(notifsCol, newNotif);
-    } catch (e) {
-      console.error("Error guardando notificación en Firestore:", e);
-    }
-  }
-
-  // Notificación de sistema local (Push)
-  if (state.user.notificationsEnabled) {
-    notificationService.sendLocalNotification(title, message, true);
-  }
-};
-
-export const subscribeToNotifications = (callback: (notifs: Notification[]) => void) => {
-  const uid = auth.currentUser?.uid;
-  if (!uid) return () => {};
-
-  const q = query(
-    collection(db, "users", uid, "notifications"),
-    orderBy("timestamp", "desc"),
-    limit(30)
-  );
-
-  return onSnapshot(q, (snapshot) => {
-    const notifs = snapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        title: data.title,
-        message: data.message,
-        read: data.read,
-        type: data.type,
-        time: data.timestamp ? new Date(data.timestamp.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Ahora'
-      };
-    }) as Notification[];
-    
-    const state = loadDB();
-    state.notifications = notifs;
-    saveDB(state);
-    callback(notifs);
-  });
+  state.notifications.unshift(newNotif);
+  saveDB(state);
 };
 
 export const markNotificationsRead = async () => {
-  const uid = auth.currentUser?.uid;
-  if (!uid) return;
-
-  try {
-    const q = query(
-      collection(db, "users", uid, "notifications"),
-      where("read", "==", false)
-    );
-    const snapshot = await getDocs(q);
-    const batch = writeBatch(db);
-    
-    snapshot.docs.forEach(d => {
-      batch.update(d.ref, { read: true });
-    });
-    
-    await batch.commit();
-    
-    const state = loadDB();
-    state.notifications = state.notifications.map(n => ({ ...n, read: true }));
-    saveDB(state);
-  } catch (e) {
-    console.error("Error al marcar como leídas:", e);
-  }
+  const state = loadDB();
+  state.notifications.forEach((n: any) => n.read = true);
+  saveDB(state);
 };
 
-// --- FUNCIONES DE EXPERIENCIA (XP) ---
+export const subscribeToNotifications = (callback: (notifs: Notification[]) => void) => {
+  const handler = () => {
+    const state = loadDB();
+    callback(state.notifications);
+  };
+  window.addEventListener(UPDATE_EVENT, handler);
+  handler();
+  return () => window.removeEventListener(UPDATE_EVENT, handler);
+};
 
 export const addFEPoints = async (amount: number, reason: string = 'Actividad') => {
   const state = loadDB();
   state.user.points += amount;
   
+  if (!state.user.xpHistory) state.user.xpHistory = [];
+  state.user.xpHistory.push({ date: new Date().toISOString(), points: state.user.points });
+
   const newLevel = Math.floor(Math.sqrt(state.user.points / 100));
   if (newLevel > state.user.level) {
     state.user.level = newLevel;
     addNotification('¡Nivel Alcanzado!', `Has subido al nivel ${newLevel}`, 'award');
     feedback.playSuccess();
   }
-
   saveDB(state);
-  if (auth.currentUser) {
-    await syncUserProfile({ points: state.user.points, level: state.user.level });
-  }
 };
 
 export const handleDailyCheckIn = () => {
   const state = loadDB();
   const today = new Date().toISOString().split('T')[0];
-  const lastLogin = state.user.lastLoginDate?.split('T')[0];
-  if (lastLogin !== today) {
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    if (lastLogin === yesterday.toISOString().split('T')[0]) {
-      state.user.streak += 1;
-    } else {
-      state.user.streak = 1;
-    }
+  if (state.user.lastLoginDate?.split('T')[0] !== today) {
+    state.user.streak = (state.user.lastLoginDate?.split('T')[0] === new Date(Date.now() - 86400000).toISOString().split('T')[0]) ? state.user.streak + 1 : 1;
     state.user.lastLoginDate = new Date().toISOString();
-    saveDB(state);
+    state.user.totalLogins = (state.user.totalLogins || 0) + 1;
     addFEPoints(10, 'Inicio de sesión diario');
+    saveDB(state);
   }
+};
+
+export const addLesson = async (lesson: Partial<Lesson>) => {
+  const state = loadDB();
+  const newLesson = { ...lesson, id: Date.now().toString(), timestamp: new Date().toISOString(), likes: 0 };
+  state.lessons.unshift(newLesson);
+  saveDB(state);
+  addFEPoints(150, 'Compartir lección');
+};
+
+export const subscribeToLessons = (callback: (lessons: Lesson[]) => void) => {
+  const handler = () => callback(loadDB().lessons);
+  window.addEventListener(UPDATE_EVENT, handler);
+  handler();
+  return () => window.removeEventListener(UPDATE_EVENT, handler);
 };
 
 export const updateUser = (updater: (u: User) => User) => {
   const state = loadDB();
   state.user = updater(state.user);
   saveDB(state);
-  syncUserProfile(state.user);
 };
 
 export const toggleFavorite = (verse: BibleVerse) => {
   const state = loadDB();
-  const index = state.user.favorites.findIndex(f => f.book === verse.book && f.chapter === verse.chapter && f.verse === verse.verse);
-  if (index >= 0) state.user.favorites.splice(index, 1);
+  const idx = state.user.favorites.findIndex((f: any) => f.book === verse.book && f.verse === verse.verse && f.chapter === verse.chapter);
+  if (idx >= 0) state.user.favorites.splice(idx, 1);
   else state.user.favorites.push(verse);
   saveDB(state);
-  syncUserProfile({ favorites: state.user.favorites });
 };
 
-export const addGoal = (goal: Partial<Goal>) => {
+export const addGoal = (goal: any) => {
   const state = loadDB();
-  const newGoal: Goal = {
-    id: Date.now().toString(),
-    title: goal.title || 'Misión',
-    type: goal.type || 'Bronce',
-    period: goal.period || 'Diario',
-    progress: 0,
-    total: goal.total || 1,
-    completed: false
-  };
-  state.goals.push(newGoal);
+  state.goals.push({ ...goal, id: Date.now().toString(), progress: 0, completed: false });
   saveDB(state);
-  addNotification('Misión Aceptada', `Has activado: ${newGoal.title}`, 'info');
 };
 
 export const updateGoalProgress = (id: string, amount: number) => {
   const state = loadDB();
-  const goalIndex = state.goals.findIndex(g => g.id === id);
-  if (goalIndex === -1) return;
-
-  const goal = state.goals[goalIndex];
-  if (goal.completed) return;
-
-  goal.progress += amount;
-  if (goal.progress >= goal.total) {
-    goal.progress = goal.total;
-    goal.completed = true;
-    const xpRewards: Record<string, number> = { 'Bronce': 100, 'Plata': 350, 'Oro': 1000 };
-    const reward = xpRewards[goal.type] || 50;
-    addFEPoints(reward, `Meta cumplida: ${goal.title}`);
-    addNotification('¡Misión Cumplida!', `Has completado "${goal.title}" y ganado ${reward} XP`, 'award');
-  }
-  saveDB(state);
-};
-
-export const addPlaylist = (playlist: Playlist) => {
-  const state = loadDB();
-  if (!state.playlists) state.playlists = [];
-  state.playlists.push(playlist);
-  saveDB(state);
-  addNotification('Nueva Mezcla', `Has compartido "${playlist.title}"`, 'info');
-};
-
-export const togglePlaylistShared = (id: string) => {
-  const state = loadDB();
-  const index = state.playlists.findIndex(p => p.id === id);
-  if (index >= 0) {
-    state.playlists[index].shared = !state.playlists[index].shared;
-    saveDB(state);
-  }
-};
-
-export const addReflection = async (reflectionData: Partial<Reflection>) => {
-  const state = loadDB();
-  const newRef = {
-    userId: auth.currentUser?.uid || state.user.id,
-    userName: state.user.name,
-    userPhoto: state.user.photoUrl,
-    text: reflectionData.text || '',
-    verseReference: reflectionData.verseReference || 'RVR1960',
-    timestamp: Timestamp.now(),
-    likes: 0
-  };
-  try {
-    await addDoc(collection(db, "reflections"), newRef);
-    addFEPoints(50, 'Compartir reflexión');
-  } catch (e) {
-    console.error("Error saving reflection:", e);
-  }
-};
-
-export const likeReflection = async (id: string) => {
-  try {
-    const refDoc = doc(db, "reflections", id);
-    await updateDoc(refDoc, { likes: increment(1) });
-  } catch (e) {
-    console.error("Error liking reflection:", e);
-  }
-};
-
-export const subscribeToReflections = (callback: (data: Reflection[]) => void) => {
-  const q = query(collection(db, "reflections"), orderBy("timestamp", "desc"), limit(50));
-  return onSnapshot(q, (snapshot) => {
-    const reflections = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      timestamp: (doc.data().timestamp as Timestamp).toDate().toISOString()
-    })) as Reflection[];
-    const state = loadDB();
-    state.reflections = reflections;
-    saveDB(state);
-    callback(reflections);
-  });
-};
-
-export const addPrayerRequest = async (data: { text: string, category: string }) => {
-  const state = loadDB();
-  const newReq = {
-    userId: auth.currentUser?.uid || state.user.id,
-    userName: state.user.name,
-    userPhoto: state.user.photoUrl,
-    request: data.text,
-    category: data.category,
-    createdAt: Timestamp.now(),
-    prayersCount: 0,
-    prayers: [],
-    status: 'active'
-  };
-  try {
-    await addDoc(collection(db, "prayers"), newReq);
-    addFEPoints(30, 'Pedir oración');
-  } catch (e) {
-    console.error("Error saving prayer:", e);
-  }
-};
-
-export const joinPrayer = async (requestId: string) => {
-  const state = loadDB();
-  const uid = auth.currentUser?.uid || state.user.id;
-  const prayerRef = doc(db, "prayers", requestId);
-  try {
-    await updateDoc(prayerRef, {
-      prayers: arrayUnion(uid),
-      prayersCount: increment(1)
-    });
-    addNotification('Guerrero en Acción', `Te uniste en oración`, 'info');
-    feedback.playSuccess();
-  } catch (e) {
-    console.error("Error joining prayer:", e);
-  }
-};
-
-export const updatePrayerStatus = async (requestId: string, status: 'active' | 'answered') => {
-  try {
-    const prayerRef = doc(db, "prayers", requestId);
-    await updateDoc(prayerRef, { status });
-    if (status === 'answered') {
-      addFEPoints(100, 'Testimonio de oración respondida');
-      addNotification('¡Gloria a Dios!', 'Tu petición ha sido marcada como respondida.', 'award');
-      feedback.playSuccess();
+  const goal = state.goals.find((g: any) => g.id === id);
+  if (goal && !goal.completed) {
+    goal.progress += amount;
+    if (goal.progress >= goal.total) {
+      goal.completed = true;
+      addFEPoints(100, 'Meta cumplida');
     }
-  } catch (e) {
-    console.error("Error updating prayer status:", e);
+    saveDB(state);
   }
 };
 
-export const subscribeToPrayers = (callback: (data: PrayerRequest[]) => void) => {
-  const q = query(collection(db, "prayers"), orderBy("createdAt", "desc"), limit(50));
-  return onSnapshot(q, (snapshot) => {
-    const prayers = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      createdAt: (doc.data().createdAt as Timestamp).toDate().toISOString()
-    })) as PrayerRequest[];
-    const state = loadDB();
-    state.prayerRequests = prayers;
-    saveDB(state);
-    callback(prayers);
-  });
+export const addPlaylist = (pl: Playlist) => {
+  const state = loadDB();
+  state.playlists.push(pl);
+  saveDB(state);
 };
 
-export const fetchGlobalLeaderboard = () => {
+export const addReflection = async (ref: any) => {
   const state = loadDB();
-  return [
-    { id: state.user.id, name: state.user.name, points: state.user.points, level: state.user.level },
-    { id: '2', name: 'Guerrero Pro', points: 1500, level: 4 },
-    { id: '3', name: 'Discípulo Digital', points: 800, level: 2 },
-    { id: '4', name: 'Heraldo Ignite', points: 450, level: 1 }
-  ].sort((a, b) => b.points - a.points);
+  const newRef = { ...ref, id: Date.now().toString(), timestamp: new Date().toISOString(), likes: 0, userName: state.user.name, userPhoto: state.user.photoUrl };
+  state.reflections.unshift(newRef);
+  saveDB(state);
+  addFEPoints(50, 'Nueva reflexión');
+};
+
+export const likeReflection = (id: string) => {
+  const state = loadDB();
+  const ref = state.reflections.find((r: any) => r.id === id);
+  if (ref) ref.likes++;
+  saveDB(state);
+};
+
+export const subscribeToReflections = (callback: (refs: Reflection[]) => void) => {
+  const handler = () => callback(loadDB().reflections);
+  window.addEventListener(UPDATE_EVENT, handler);
+  handler();
+  return () => window.removeEventListener(UPDATE_EVENT, handler);
+};
+
+export const addPrayerRequest = async (req: any) => {
+  const state = loadDB();
+  const newReq = { ...req, id: Date.now().toString(), createdAt: new Date().toISOString(), prayersCount: 0, userName: state.user.name, userPhoto: state.user.photoUrl };
+  state.prayerRequests.unshift(newReq);
+  saveDB(state);
+};
+
+export const joinPrayer = (id: string) => {
+  const state = loadDB();
+  const req = state.prayerRequests.find((r: any) => r.id === id);
+  if (req) req.prayersCount++;
+  saveDB(state);
+};
+
+export const updatePrayerStatus = (id: string, status: string) => {
+  const state = loadDB();
+  const req = state.prayerRequests.find((r: any) => r.id === id);
+  if (req) req.status = status;
+  saveDB(state);
+};
+
+export const subscribeToPrayers = (callback: (prayers: PrayerRequest[]) => void) => {
+  const handler = () => callback(loadDB().prayerRequests);
+  window.addEventListener(UPDATE_EVENT, handler);
+  handler();
+  return () => window.removeEventListener(UPDATE_EVENT, handler);
+};
+
+export const fetchGlobalLeaderboard = async () => {
+  return [{ name: 'Tú', points: loadDB().user.points, level: loadDB().user.level }];
 };
 
 export const getCachedChapter = (book: string, chapter: number) => {
-  const state = loadDB();
-  return state.bibleCache?.find(c => c.book === book && c.chapter === chapter)?.verses;
-};
-
-export const saveChapterToCache = (book: string, chapter: number, verses: BibleVerse[]) => {
-  const state = loadDB();
-  if (!state.bibleCache) state.bibleCache = [];
-  const index = state.bibleCache.findIndex(c => c.book === book && c.chapter === chapter);
-  if (index >= 0) state.bibleCache[index].verses = verses;
-  else state.bibleCache.push({ book, chapter, verses });
-  saveDB(state);
+  return loadDB().bibleCache.find((c: any) => c.book === book && c.chapter === chapter)?.verses;
 };

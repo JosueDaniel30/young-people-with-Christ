@@ -77,7 +77,6 @@ export default function Auth({ onLogin }: { onLogin: () => void }) {
       let userData;
 
       try {
-        // Intentamos obtener el documento, pero si falla por offline, no lanzamos error fatal
         const userDoc = await getDoc(userDocRef);
         if (userDoc.exists()) {
           userData = userDoc.data();
@@ -89,11 +88,10 @@ export default function Auth({ onLogin }: { onLogin: () => void }) {
             isGuest: true,
             lastLoginDate: new Date().toISOString()
           };
-          // Intentamos guardarlo, pero Firestore lo encolará si estamos offline
-          setDoc(userDocRef, userData).catch(e => console.warn("Guardado de invitado en cola (offline)"));
+          setDoc(userDocRef, userData).catch(() => {});
         }
       } catch (docErr) {
-        console.warn("Error leyendo Firestore, usando perfil local:", docErr);
+        // Silencio para evitar advertencias de offline innecesarias
         userData = { ...INITIAL_USER, id: uid, name: 'Invitado (Offline)' };
       }
 

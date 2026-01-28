@@ -4,16 +4,14 @@ import Layout from './components/Layout.tsx';
 import HomeView from './views/Home.tsx';
 import BibleView from './views/Bible.tsx';
 import GoalsView from './views/Goals.tsx';
-import PlaylistsView from './views/Playlists.tsx';
 import ProfileView from './views/Profile.tsx';
 import AuthView from './views/Auth.tsx';
 import CommunityView from './views/Community.tsx';
 import PrayerRequestsView from './views/PrayerRequests.tsx';
 import { loadDB, handleDailyCheckIn, saveDB } from './store/db.ts';
-import { startSocialSimulation } from './services/socialSimulator.ts';
-import { Loader2, Zap } from 'lucide-react';
 import { auth } from './services/firebaseConfig';
 import { onAuthStateChanged, signOut } from "firebase/auth";
+import { Loader2, Zap } from 'lucide-react';
 
 const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -26,7 +24,6 @@ const App: React.FC = () => {
       if (user) {
         setIsAuthenticated(true);
         handleDailyCheckIn();
-        startSocialSimulation();
       } else {
         setIsAuthenticated(false);
       }
@@ -42,54 +39,29 @@ const App: React.FC = () => {
     };
   }, []);
 
-  const refreshState = () => {
-    setAppState(loadDB());
-  };
-
   const handleLogout = async () => {
-    try {
-      await signOut(auth);
-      const state = loadDB();
-      state.user.id = '1'; 
-      saveDB(state);
-      setIsAuthenticated(false);
-      setActiveTab('home');
-      refreshState();
-    } catch (e) {
-      console.error("Error al salir:", e);
-    }
+    await signOut(auth);
+    setIsAuthenticated(false);
+    setActiveTab('home');
   };
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-[#111111] flex flex-col items-center justify-center space-y-12">
-        <div className="relative">
-          <div className="absolute inset-0 bg-amber-600 blur-[80px] opacity-40 animate-pulse" />
-          <Zap className="w-24 h-24 text-amber-500 relative z-10 fill-current animate-bounce-slow" />
-        </div>
-        <div className="space-y-4 text-center">
-          <h2 className="text-amber-500 font-black uppercase tracking-[0.8em] text-[10px]">Conectando con el Cielo</h2>
-          <div className="flex justify-center">
-            <Loader2 className="w-6 h-6 text-amber-700/40 animate-spin" />
-          </div>
-        </div>
-      </div>
-    );
-  }
+  if (isLoading) return (
+    <div className="min-h-screen bg-[#111111] flex flex-col items-center justify-center gap-6">
+      <Zap className="w-16 h-16 text-amber-500 animate-bounce" />
+      <Loader2 className="animate-spin text-amber-600" />
+    </div>
+  );
 
-  if (!isAuthenticated) {
-    return <AuthView onLogin={() => setIsAuthenticated(true)} />;
-  }
+  if (!isAuthenticated) return <AuthView onLogin={() => setIsAuthenticated(true)} />;
 
   return (
     <Layout activeTab={activeTab} setActiveTab={setActiveTab}>
-      {activeTab === 'home' && <HomeView user={appState.user} refreshState={refreshState} setActiveTab={setActiveTab} />}
-      {activeTab === 'bible' && <BibleView refreshState={refreshState} />}
-      {activeTab === 'community' && <CommunityView refreshState={refreshState} />}
-      {activeTab === 'prayer' && <PrayerRequestsView refreshState={refreshState} />}
-      {activeTab === 'goals' && <GoalsView goals={appState.goals} refreshState={refreshState} />}
-      {activeTab === 'playlists' && <PlaylistsView refreshState={refreshState} />}
-      {activeTab === 'profile' && <ProfileView user={appState.user} refreshState={refreshState} onLogout={handleLogout} />}
+      {activeTab === 'home' && <HomeView user={appState.user} refreshState={() => setAppState(loadDB())} setActiveTab={setActiveTab} />}
+      {activeTab === 'bible' && <BibleView refreshState={() => setAppState(loadDB())} />}
+      {activeTab === 'community' && <CommunityView refreshState={() => setAppState(loadDB())} />}
+      {activeTab === 'prayer' && <PrayerRequestsView refreshState={() => setAppState(loadDB())} />}
+      {activeTab === 'goals' && <GoalsView goals={appState.goals} refreshState={() => setAppState(loadDB())} />}
+      {activeTab === 'profile' && <ProfileView user={appState.user} refreshState={() => setAppState(loadDB())} onLogout={handleLogout} setActiveTab={setActiveTab} />}
     </Layout>
   );
 };

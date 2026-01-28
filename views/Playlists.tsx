@@ -60,7 +60,6 @@ const PlaylistsView: React.FC<{ refreshState?: () => void }> = ({ refreshState }
   return (
     <div className="p-4 sm:p-10 space-y-12 animate-in fade-in slide-in-from-bottom duration-700 pb-32 relative max-w-7xl mx-auto">
       
-      {/* Hero Section Rediseñada */}
       <section className={`relative overflow-hidden rounded-[3rem] sm:rounded-[4rem] p-10 sm:p-20 group border-2 ${isDarkMode ? 'border-amber-500/10' : 'border-amber-100'}`}>
         <div className="absolute inset-0 bg-gradient-to-br from-amber-600 via-orange-600 to-yellow-600 animate-gradient-xy opacity-90" />
         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10" />
@@ -94,7 +93,6 @@ const PlaylistsView: React.FC<{ refreshState?: () => void }> = ({ refreshState }
         </div>
       </section>
 
-      {/* Botón Flotante con Branding Ignite */}
       <button 
         onClick={() => { feedback.playClick(); setShowAddModal(true); }}
         className="fixed bottom-32 right-6 sm:right-12 z-50 w-20 h-20 bg-gradient-to-br from-amber-600 to-orange-700 rounded-full shadow-[0_20px_50px_rgba(217,119,6,0.4)] flex items-center justify-center text-white border-4 border-white dark:border-[#111111] active:scale-90 transition-all group"
@@ -103,7 +101,6 @@ const PlaylistsView: React.FC<{ refreshState?: () => void }> = ({ refreshState }
         <Plus className="w-10 h-10 group-hover:rotate-90 transition-transform duration-500" />
       </button>
 
-      {/* Grid de Playlists Estilo Tarjetas de Album */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
         {filteredPlaylists.map((pl: Playlist) => (
           <div key={pl.id} className={`group relative rounded-[3.5rem] p-8 border-2 transition-all hover:-translate-y-3 ${isDarkMode ? 'bg-amber-950/10 border-white/5 shadow-2xl shadow-black/40' : 'bg-white border-amber-50 shadow-xl shadow-amber-100/30'}`}>
@@ -175,21 +172,20 @@ const PlaylistsView: React.FC<{ refreshState?: () => void }> = ({ refreshState }
         ))}
       </div>
 
-      {/* Modal de Lanzamiento Temático */}
       {showAddModal && (
         <div className="fixed inset-0 z-[150] flex items-center justify-center p-6 bg-black/90 backdrop-blur-2xl animate-in fade-in duration-300">
           <div className={`w-full max-w-xl rounded-[4rem] overflow-hidden shadow-2xl border-2 animate-in zoom-in-95 duration-500 ${isDarkMode ? 'bg-[#0a0502] border-amber-500/20' : 'bg-white border-white'}`}>
             
             <div className="relative h-44 bg-gradient-to-r from-amber-600 via-orange-600 to-yellow-600 flex flex-col items-center justify-center text-center">
-              <Zap className="w-24 h-24 text-white/10 animate-pulse absolute" />
+              <Music className="w-24 h-24 text-white/10 absolute animate-pulse" />
               <h3 className="relative z-10 text-3xl font-black uppercase tracking-tighter text-white">Lanzar Nueva Mezcla</h3>
               <p className="relative z-10 text-[10px] font-black uppercase tracking-[0.4em] text-white/60">Añade tu frecuencia al altar</p>
-              <button onClick={() => setShowAddModal(false)} className="absolute top-8 right-8 p-3 bg-black/20 text-white rounded-full hover:bg-black/40 transition-all">
+              <button onClick={() => setShowAddModal(false)} className="absolute top-8 right-8 p-3 bg-black/20 text-white rounded-full hover:bg-black/40 transition-all z-20">
                 <X className="w-6 h-6" />
               </button>
             </div>
 
-            <div className="p-10 space-y-8">
+            <div className="p-10 space-y-8 overflow-y-auto max-h-[60vh] scrollbar-hide">
               <div className="space-y-3">
                 <label className="text-[10px] font-black uppercase tracking-[0.4em] text-amber-600 ml-4">Nombre de la Mezcla</label>
                 <input 
@@ -235,7 +231,7 @@ const PlaylistsView: React.FC<{ refreshState?: () => void }> = ({ refreshState }
                     {newPlaylist.shared ? <Globe className="w-6 h-6" /> : <EyeOff className="w-6 h-6" />}
                   </div>
                   <div>
-                    <span className="block text-[10px] font-black uppercase tracking-widest">Muro de la Iglesia</span>
+                    <span className="block text-[10px] font-black uppercase tracking-widest text-amber-800">Muro de la Iglesia</span>
                     <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tight">{newPlaylist.shared ? 'Visibilidad pública activa' : 'Solo tú puedes verla'}</span>
                   </div>
                 </div>
@@ -252,7 +248,7 @@ const PlaylistsView: React.FC<{ refreshState?: () => void }> = ({ refreshState }
                 disabled={!newPlaylist.title.trim() || (!newPlaylist.spotifyLink && !newPlaylist.ytMusicLink)}
                 className="w-full py-7 rounded-[2.5rem] bg-gradient-to-r from-amber-600 via-orange-600 to-yellow-600 text-white font-black uppercase tracking-[0.4em] text-xs shadow-2xl shadow-amber-600/40 active:scale-95 transition-all flex items-center justify-center gap-4 group disabled:opacity-30 disabled:grayscale"
               >
-                Lanzar Mezcla <Sparkles className="w-5 h-5 group-hover:rotate-12 transition-transform" />
+                Lanzar Mezcla (+100 XP) <Sparkles className="w-5 h-5 group-hover:rotate-12 transition-transform" />
               </button>
             </div>
           </div>
